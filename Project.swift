@@ -8,6 +8,7 @@ let project = Project(
             destinations: .macOS,
             product: .app,
             bundleId: "com.foyoodo.AudioTag",
+            deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
             sources: ["AudioTag/Sources/**"],
             resources: ["AudioTag/Resources/**"],

@@ -6,44 +6,23 @@
 //
 
 import SwiftUI
-import TagLib_Swift
 
 @Observable
 final class AudioTagViewModel {
 
-    var fileURL: URL? {
-        get { audioFile?.url }
-        set { audioFile = newValue.map(AudioFile.init(url:)) }
+    var filesDict = [File.ID: File]()
+
+    var files: [File] = []
+
+    var selectedFiles = Set<File.ID>()
+    var selectedFile: File? {
+        guard selectedFiles.count == 1 else { return nil }
+        return filesDict[selectedFiles.first!]
     }
 
-    private var audioFile: AudioFile?
-
-    var title: String {
-        get { audioFile?.title ?? "" }
-        set { audioFile?.title = newValue }
-    }
-
-    var artist: String {
-        get { audioFile?.artist ?? "" }
-        set { audioFile?.artist = newValue }
-    }
-
-    var album: String {
-        get { audioFile?.album ?? "" }
-        set { audioFile?.album = newValue }
-    }
-
-    var year: String {
-        get { (audioFile?.year).map { "\($0)" } ?? "" }
-        set { audioFile?.year = .init(newValue) }
-    }
-
-    var track: String {
-        get { (audioFile?.track).map { "\($0)" } ?? "" }
-        set { audioFile?.track = .init(newValue) }
-    }
-
-    func save() {
-        audioFile?.apply()
+    func handleDropped(url: URL) {
+        let file = File(url: url)
+        filesDict[url] = file
+        files.append(file)
     }
 }
