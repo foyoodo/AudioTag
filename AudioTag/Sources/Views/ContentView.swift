@@ -12,12 +12,9 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-
+            FileTreeView()
         } content: {
-            FileTable()
-                .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                    handleDrop(providers: providers)
-                }
+            AudioFileTable()
         } detail: {
             Group {
                 if let selectedFile = viewModel.selectedFile {
@@ -28,19 +25,5 @@ struct ContentView: View {
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 300, max: 400)
         }
-    }
-
-    private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        let providers = providers.filter { $0.canLoadObject(ofClass: URL.self) }
-        providers.forEach { provider in
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                url.map(addAudioFile(url:))
-            }
-        }
-        return !providers.isEmpty
-    }
-
-    private func addAudioFile(url: URL) {
-        viewModel.handleDropped(url: url)
     }
 }

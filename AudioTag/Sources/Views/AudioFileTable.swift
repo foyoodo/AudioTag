@@ -1,5 +1,5 @@
 //
-//  FileTable.swift
+//  AudioFileTable.swift
 //  AudioTag
 //
 //  Created by foyoodo on 24/10/2024.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct FileTable: View {
+struct AudioFileTable: View {
     @Environment(AudioTagViewModel.self) var viewModel
 
     var body: some View {
@@ -22,11 +22,17 @@ struct FileTable: View {
             TableColumn("Year") { textField(for: $0, keyPath: \.year) }
             TableColumn("Track") { textField(for: $0, keyPath: \.track) }
         }
+        .dropDestination(for: FileItem.self) { items, location in
+            for item in items {
+                _ = item.allFiles().map(\.url).map(viewModel.handleDropped(url:))
+            }
+            return true
+        }
     }
 
     private func textField(
-        for file: Binding<File>,
-        keyPath: KeyPath<Binding<File>, Binding<String>>
+        for file: Binding<AudioFileItem>,
+        keyPath: KeyPath<Binding<AudioFileItem>, Binding<String>>
     ) -> some View {
         TextField(text: file[keyPath: keyPath]) { }
             .onSubmit {

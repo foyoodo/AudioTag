@@ -9,7 +9,15 @@ let project = Project(
             product: .app,
             bundleId: "com.foyoodo.AudioTag",
             deploymentTargets: .macOS("14.0"),
-            infoPlist: .default,
+            infoPlist: .extendingDefault(with: [
+                "UTExportedTypeDeclarations": [
+                    [
+                        "UTTypeIdentifier": "com.foyoodo.AudioTag-FileItem",
+                        "UTTypeConformsTo": [ "public.data" ],
+                        "UTTypeDescription": "FileItem",
+                    ]
+                ]
+            ]),
             sources: ["AudioTag/Sources/**"],
             resources: ["AudioTag/Resources/**"],
             dependencies: [

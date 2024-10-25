@@ -10,7 +10,7 @@ import SwiftUI
 struct TagEditorView: View {
     @Environment(AudioTagViewModel.self) var viewModel
 
-    var file: File
+    var file: AudioFileItem
 
     var fileIndex: Int {
         viewModel.files.firstIndex(where: { $0.id == file.id })!

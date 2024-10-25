@@ -10,18 +10,18 @@ import SwiftUI
 @Observable
 final class AudioTagViewModel {
 
-    var filesDict = [File.ID: File]()
+    var filesDict = [AudioFileItem.ID: AudioFileItem]()
 
-    var files: [File] = []
+    var files: [AudioFileItem] = []
 
-    var selectedFiles = Set<File.ID>()
-    var selectedFile: File? {
+    var selectedFiles = Set<AudioFileItem.ID>()
+    var selectedFile: AudioFileItem? {
         guard selectedFiles.count == 1 else { return nil }
         return filesDict[selectedFiles.first!]
     }
 
     func handleDropped(url: URL) {
-        let file = File(url: url)
+        let file = AudioFileItem(url: url)
         filesDict[url] = file
         files.append(file)
     }

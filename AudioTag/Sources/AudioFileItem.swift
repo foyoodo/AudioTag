@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  AudioFileItem.swift
 //  AudioTag
 //
 //  Created by foyoodo on 24/10/2024.
@@ -8,7 +8,7 @@
 import Foundation
 import TagLib_Swift
 
-struct File: Identifiable {
+struct AudioFileItem: Identifiable {
 
     var id: URL { fileURL }
 
