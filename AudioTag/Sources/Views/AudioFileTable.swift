@@ -14,6 +14,14 @@ struct AudioFileTable: View {
         @Bindable var viewModel = viewModel
 
         Table($viewModel.files, selection: $viewModel.selectedFiles) {
+            TableColumn("Artwork") {
+                if let image = $0.wrappedValue.picture {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                }
+            }
             TableColumn("Name") { textField(for: $0, keyPath: \.name) }
             TableColumn("Title") { textField(for: $0, keyPath: \.title) }
             TableColumn("Artist") { textField(for: $0, keyPath: \.artist) }

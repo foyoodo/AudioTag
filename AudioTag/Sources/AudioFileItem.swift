@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AppKit
 import TagLib_Swift
 
 struct AudioFileItem: Identifiable {
@@ -50,6 +51,11 @@ struct AudioFileItem: Identifiable {
     var track: String {
         get { (audioFile.track).map { "\($0)" } ?? "" }
         set { audioFile.track = .init(newValue) }
+    }
+
+    var picture: NSImage? {
+        get { audioFile.pictures?.first }
+        set { audioFile.pictures = newValue.map { [$0] } }
     }
 
     init(url: URL) {
