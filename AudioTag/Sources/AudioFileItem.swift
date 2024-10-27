@@ -9,14 +9,22 @@ import Foundation
 import AppKit
 import TagLib_Swift
 
-struct AudioFileItem: Identifiable {
-
+@Observable
+final class AudioFileItem: Identifiable, Hashable {
     var id: URL { fileURL }
 
     let fileURL: URL
     var name: String
 
     let audioFile: AudioFile
+
+    static func == (lhs: AudioFileItem, rhs: AudioFileItem) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 
     var title: String {
         get { audioFile.title ?? "" }
