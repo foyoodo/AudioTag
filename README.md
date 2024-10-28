@@ -31,7 +31,7 @@ git clone https://github.com/foyoodo/AudioTag.git
 brew install mise
 ```
 
-### Install Tuist
+### Install [Tuist](https://github.com/tuist/tuist)
 
 #### Mise (Optional)
 
@@ -57,3 +57,7 @@ tuist generate --no-binary-cache
 ### Build and Run
 
 Command+R
+
+## License
+
+AudioTag and its components is shared on [AGPL v3](https://www.gnu.org/licenses/agpl-3.0.en.html) license.
