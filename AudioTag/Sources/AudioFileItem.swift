@@ -27,49 +27,50 @@ final class AudioFileItem: Identifiable, Hashable {
     }
 
     var title: String {
-        get { audioFile.title ?? "" }
-        set { audioFile.title = newValue }
+        didSet { audioFile.title = title }
     }
 
     var artist: String {
-        get { audioFile.artist ?? "" }
-        set { audioFile.artist = newValue }
+        didSet { audioFile.artist = artist }
     }
 
     var album: String {
-        get { audioFile.album ?? "" }
-        set { audioFile.album = newValue }
+        didSet { audioFile.album = album }
     }
 
     var comment: String {
-        get { audioFile.comment ?? "" }
-        set { audioFile.comment = newValue }
+        didSet { audioFile.comment = comment }
     }
 
     var genre: String {
-        get { audioFile.genre ?? "" }
-        set { audioFile.genre = newValue }
+        didSet { audioFile.genre = genre }
     }
 
     var year: String {
-        get { (audioFile.year).map { "\($0)" } ?? "" }
-        set { audioFile.year = .init(newValue) }
+        didSet { audioFile.year = .init(year) }
     }
 
     var track: String {
-        get { (audioFile.track).map { "\($0)" } ?? "" }
-        set { audioFile.track = .init(newValue) }
+        didSet { audioFile.track = .init(track) }
     }
 
     var picture: NSImage? {
-        get { audioFile.pictures?.first }
-        set { audioFile.pictures = newValue.map { [$0] } }
+        didSet { audioFile.pictures = picture.map { [$0] } }
     }
 
     init(url: URL) {
         fileURL = url
         name = fileURL.lastPathComponent
         audioFile = .init(url: url)
+
+        title = audioFile.title ?? ""
+        artist = audioFile.artist ?? ""
+        album = audioFile.album ?? ""
+        comment = audioFile.comment ?? ""
+        genre = audioFile.genre ?? ""
+        year = (audioFile.year).map { "\($0)" } ?? ""
+        track = (audioFile.track).map { "\($0)" } ?? ""
+        picture = audioFile.pictures?.first
     }
 
     func save() {

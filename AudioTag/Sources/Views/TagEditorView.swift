@@ -8,13 +8,7 @@
 import SwiftUI
 
 struct TagEditorView: View {
-    @Environment(AudioTagViewModel.self) var viewModel
-
     @Bindable var file: AudioFileItem
-
-    var fileIndex: Int {
-        viewModel.files.firstIndex(where: { $0.id == file.id })!
-    }
 
     var body: some View {
         ScrollView {
@@ -31,13 +25,13 @@ struct TagEditorView: View {
                     }
 
                     Section {
-                        audioTagRow("Title", text: $file.title)
-                        audioTagRow("Artist", text: $file.artist)
-                        audioTagRow("Album", text: $file.album)
-                        audioTagRow("Comment", text: $file.comment)
-                        audioTagRow("Genre", text: $file.genre)
-                        audioTagRow("Year", text: $file.year)
-                        audioTagRow("Track", text: $file.track)
+                        TextField("Title", text: $file.title)
+                        TextField("Artist", text: $file.artist)
+                        TextField("Album", text: $file.album)
+                        TextField("Comment", text: $file.comment)
+                        TextField("Genre", text: $file.genre)
+                        TextField("Year", text: $file.year)
+                        TextField("Track", text: $file.track)
                     }
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
@@ -53,13 +47,6 @@ struct TagEditorView: View {
             }
             .padding()
         }
-    }
-
-    private func audioTagRow(
-        _ titleKey: LocalizedStringKey,
-        text: Binding<String>
-    ) -> some View {
-        TextField(titleKey, text: text)
     }
 
     @ViewBuilder
