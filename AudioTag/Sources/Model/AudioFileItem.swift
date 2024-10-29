@@ -11,10 +11,9 @@ import TagLib_Swift
 
 @Observable
 final class AudioFileItem: Identifiable, Hashable {
-    var id: URL { fileURL }
+    var id: URL { file.url }
 
-    let fileURL: URL
-    var name: String
+    var file: FileItem
 
     let audioFile: AudioFile
 
@@ -58,10 +57,9 @@ final class AudioFileItem: Identifiable, Hashable {
         didSet { audioFile.pictures = picture.map { [$0] } }
     }
 
-    init(url: URL) {
-        fileURL = url
-        name = fileURL.lastPathComponent
-        audioFile = .init(url: url)
+    init(file: FileItem) {
+        self.file = file
+        self.audioFile = .init(url: file.url)
 
         title = audioFile.title ?? ""
         artist = audioFile.artist ?? ""

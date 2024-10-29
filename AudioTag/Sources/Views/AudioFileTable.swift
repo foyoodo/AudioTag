@@ -43,7 +43,7 @@ struct AudioFileTable: View {
                         .frame(width: 16, height: 16)
                 }
             }
-            TableColumn("Name") { textField(for: $0, keyPath: \.name, field: .name($0)) }
+            TableColumn("Name") { textField(for: $0, keyPath: \.file.name, field: .name($0)) }
             TableColumn("Title") { textField(for: $0, keyPath: \.title, field: .title($0)) }
             TableColumn("Artist") { textField(for: $0, keyPath: \.artist, field: .artist($0)) }
             TableColumn("Album") { textField(for: $0, keyPath: \.album, field: .album($0)) }
@@ -52,9 +52,7 @@ struct AudioFileTable: View {
             TableColumn("Track") { textField(for: $0, keyPath: \.track, field: .track($0)) }
         }
         .dropDestination(for: FileItem.self) { items, location in
-            for item in items {
-                _ = item.allFiles().map(\.url).map(viewModel.handleDropped(url:))
-            }
+            _ = try? items.map(viewModel.handleDropped(file:))
             return true
         }
 //        .onChange(of: focusedField) { oldValue, _ in
