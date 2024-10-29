@@ -14,12 +14,14 @@ private let allowedExtension = [
 ]
 
 @Observable
-final class FileItem: ExpandedObservable {
+final class FileItem: Codable, ExpandedObservable {
     var id: URL { url }
 
     private(set) var url: URL
 
-    var isExpanded: Bool
+    var name: String
+
+    var isExpanded: Bool = false
 
     var children: [FileItem]?
 
@@ -29,12 +31,28 @@ final class FileItem: ExpandedObservable {
     @ObservationIgnored
     var isDirectory: Bool { children != nil }
 
-    var name: String
-
     var isExist: Bool { FileManager.default.fileExists(atPath: url.path()) }
 
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(url)
+    private enum CodingKeys: CodingKey {
+        case url
+        case children
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        let url = try container.decode(URL.self, forKey: .url)
+
+        self.url = url
+        self.name = url.lastPathComponent
+        self.children = try container.decodeIfPresent([FileItem].self, forKey: .children)
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(self.url, forKey: .url)
+        try container.encodeIfPresent(self.children, forKey: .children)
     }
 
     init(url: URL, isExpanded: Bool = false) {
@@ -52,7 +70,11 @@ final class FileItem: ExpandedObservable {
     }
 }
 
-extension FileItem: Codable, Hashable, Identifiable, Comparable {
+extension FileItem: Hashable, Identifiable, Comparable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(url)
+    }
+
     static func == (lhs: FileItem, rhs: FileItem) -> Bool {
         lhs.id == rhs.id
     }

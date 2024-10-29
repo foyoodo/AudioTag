@@ -25,6 +25,7 @@ struct FileTreeView: View {
                     }
                     .listItemTint(.monochrome)
                     .id(item.id)
+                    .draggable(item)
                 }
             }
             .onAppear {
