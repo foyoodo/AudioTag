@@ -31,10 +31,9 @@ struct FileTreeView: View {
                         if item.isHighlighted {
                             Color.brightYellow
                                 .clipShape(
-                                    .rect(cornerRadius: 6)
+                                    .rect(cornerRadius: 4)
                                 )
-                                .padding(.horizontal, -6)
-                                .padding(.vertical, -3)
+                                .padding(-3)
                         }
                     }
                     .listItemTint(.monochrome)
@@ -60,11 +59,14 @@ struct FileTreeView: View {
                 Task { @MainActor in
                     try await Task.sleep(nanoseconds: 1_000_000)
                     withAnimation {
-                        proxy.scrollTo(folder.id)
-                        file.isHighlighted = true
+                        proxy.scrollTo(file.id, anchor: .center)
                     } completion: {
-                        withAnimation(.default.delay(0.5)) {
-                            file.isHighlighted = false
+                        withAnimation {
+                            file.isHighlighted = true
+                        } completion: {
+                            withAnimation(.default.delay(0.5)) {
+                                file.isHighlighted = false
+                            }
                         }
                     }
                 }
