@@ -12,6 +12,8 @@ struct FileTreeView: View {
 
     @State var theViewModel = FileTreeViewModel()
 
+    @AppStorage("shouldCollapseOthers") var shouldCollapseOthers: Bool = true
+
     var body: some View {
         @Bindable var viewModel = viewModel
         ScrollViewReader { proxy in
@@ -47,12 +49,30 @@ struct FileTreeView: View {
             .onChange(of: theViewModel.selectedFolder) { _, newValue in
                 viewModel.onFolderChange(newValue)
             }
-            .onChange(of: viewModel.selectedFile) { _, newValue in
+            .onChange(of: viewModel.selectedFile) { oldValue, newValue in
                 guard let file = newValue?.file,
                       let folder = newValue?.file.parent
                 else { return }
 
-                for folder in sequence(first: folder, next: { $0.parent }) {
+                let newTree = sequence(first: folder, next: { $0.parent }).reversed()
+
+                if shouldCollapseOthers, let oldFolder = oldValue?.file.parent {
+                    let oldTree = sequence(first: oldFolder, next: { $0.parent }).reversed()
+                    var idx: Int?
+                    for (index, (oldNode, newNode)) in zip(oldTree, newTree).enumerated() {
+                        if oldNode != newNode {
+                            idx = index
+                            break
+                        }
+                    }
+                    if let idx {
+                        for folder in oldTree[idx..<oldTree.count] {
+                            folder.isExpanded = false
+                        }
+                    }
+                }
+
+                for folder in newTree {
                     folder.isExpanded = true
                 }
 
