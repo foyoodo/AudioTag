@@ -31,7 +31,7 @@ final class FileItem: Codable, ExpandedObservable {
     @ObservationIgnored
     var isDirectory: Bool { children != nil }
 
-    var isExist: Bool { FileManager.default.fileExists(atPath: url.path()) }
+    var isHighlighted: Bool = false
 
     private enum CodingKeys: CodingKey {
         case url

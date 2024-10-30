@@ -21,7 +21,21 @@ struct FileTreeView: View {
                     Label {
                         TextField("", text: $item.name)
                     } icon: {
-                        Image(systemName: item.isExpanded ? "folder" : "folder.fill")
+                        if item.isDirectory {
+                            Image(systemName: item.isExpanded ? "folder" : "folder.fill")
+                        } else {
+                            Image(systemName: "music.quarternote.3")
+                        }
+                    }
+                    .background {
+                        if item.isHighlighted {
+                            Color.brightYellow
+                                .clipShape(
+                                    .rect(cornerRadius: 6)
+                                )
+                                .padding(.horizontal, -6)
+                                .padding(.vertical, -3)
+                        }
                     }
                     .listItemTint(.monochrome)
                     .id(item.id)
@@ -35,14 +49,22 @@ struct FileTreeView: View {
                 viewModel.onFolderChange(newValue)
             }
             .onChange(of: viewModel.selectedFile) { _, newValue in
-                for file in sequence(first: newValue?.file.parent, next: { $0?.parent }) {
-                    file?.isExpanded = true
+                guard let file = newValue?.file,
+                      let folder = newValue?.file.parent
+                else { return }
+
+                for folder in sequence(first: folder, next: { $0.parent }) {
+                    folder.isExpanded = true
                 }
-                if let folder = newValue?.file.parent {
-                    Task { @MainActor in
-                        try await Task.sleep(nanoseconds: 1_000_000)
-                        withAnimation {
-                            proxy.scrollTo(folder.id)
+
+                Task { @MainActor in
+                    try await Task.sleep(nanoseconds: 1_000_000)
+                    withAnimation {
+                        proxy.scrollTo(folder.id)
+                        file.isHighlighted = true
+                    } completion: {
+                        withAnimation(.default.delay(0.5)) {
+                            file.isHighlighted = false
                         }
                     }
                 }
