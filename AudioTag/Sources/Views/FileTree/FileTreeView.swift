@@ -23,10 +23,9 @@ struct FileTreeView: View {
                     Label {
                         TextField("", text: $item.name)
                     } icon: {
-                        if item.isDirectory {
-                            Image(systemName: item.isExpanded ? "folder" : "folder.fill")
-                        } else {
-                            Image(systemName: "music.quarternote.3")
+                        switch item.icon {
+                        case let .imageName(imageName): Image(imageName)
+                        case let .systemImageName(systemName): Image(systemName: systemName)
                         }
                     }
                     .background {

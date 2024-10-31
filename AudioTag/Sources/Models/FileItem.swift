@@ -94,3 +94,25 @@ extension FileItem: Transferable {
 extension UTType {
     fileprivate static var fileItem: UTType { UTType(exportedAs: "com.foyoodo.AudioTag-FileItem") }
 }
+
+// MARK: - Icon
+
+enum Icon {
+    case imageName(String)
+    case systemImageName(String)
+}
+
+extension FileItem {
+    var icon: Icon {
+        if isDirectory {
+            return .systemImageName(isExpanded ? "folder" : "folder.fill")
+        } else {
+            let pathExtension = url.pathExtension
+            if allowedExtension.contains(pathExtension) {
+                return .systemImageName("music.quarternote.3")
+            } else {
+                return .systemImageName("text.justify.leading")
+            }
+        }
+    }
+}
