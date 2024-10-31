@@ -46,35 +46,16 @@ struct FileTreeView: View {
             .onAppear {
                 theViewModel.onAppear()
             }
-            .onChange(of: theViewModel.selectedFolder) { _, newValue in
-                viewModel.onFolderChange(newValue)
+            .onChange(of: theViewModel.selectedFolder) { oldValue, newValue in
+                viewModel.onFolderChange(old: oldValue, new: newValue)
             }
             .onChange(of: viewModel.selectedFile) { oldValue, newValue in
-                guard let file = newValue?.file,
-                      let folder = newValue?.file.parent
-                else { return }
+                guard let file = newValue?.file else { return }
 
-                let newTree = sequence(first: folder, next: { $0.parent }).reversed()
-
-                if shouldCollapseOthers, let oldFolder = oldValue?.file.parent {
-                    let oldTree = sequence(first: oldFolder, next: { $0.parent }).reversed()
-                    var idx: Int?
-                    for (index, (oldNode, newNode)) in zip(oldTree, newTree).enumerated() {
-                        if oldNode != newNode {
-                            idx = index
-                            break
-                        }
-                    }
-                    if let idx {
-                        for folder in oldTree[idx..<oldTree.count] {
-                            folder.isExpanded = false
-                        }
-                    }
-                }
-
-                for folder in newTree {
-                    folder.isExpanded = true
-                }
+                viewModel.onExpandedFolderChange(
+                    old: oldValue?.file.parent,
+                    new: newValue?.file.parent
+                )
 
                 Task { @MainActor in
                     try await Task.sleep(nanoseconds: 1_000_000)
