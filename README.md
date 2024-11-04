@@ -1,10 +1,13 @@
-# AudioTag
+<div align="center">
+  <img src="AudioTag/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon_512x512@2x.png" width="150" height="150" alt="AudioTag logo">
+  <h1>AudioTag</h1>
+  <p>Audio metadata editor for macOS powered by TagLib<br /></p>
 
-AudioTag is an audio metadata editor for macOS powered by TagLib.
+[![AGPL v3](https://shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.en.html)
 
-## Preview
+</div>
 
-![preview](assets/preview.png)
+![Screenshot](assets/preview.png)
 
 ## Features
 
@@ -12,7 +15,7 @@ AudioTag is an audio metadata editor for macOS powered by TagLib.
 
 ## Requirements
 
-- macOS 14.5 (or newer)
+- macOS 14.0 (or newer)
 - Xcode 16.0 (or newer)
 
 ## Building
@@ -27,13 +30,11 @@ git clone https://github.com/foyoodo/AudioTag.git
 
 #### [Mise](https://github.com/jdx/mise) (Recommended)
 
-##### Install Mise
+Install Mise (Optional)
 
 ```bash
 brew install mise
 ```
-
-##### Install Tuist
 
 Open the project folder in your terminal, then
 
