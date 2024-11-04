@@ -12,8 +12,8 @@ AudioTag is an audio metadata editor for macOS powered by TagLib.
 
 ## Requirements
 
-- macOS 14.0 (or newer)
-- Xcode 15.4 (or newer)
+- macOS 14.5 (or newer)
+- Xcode 16.0 (or newer)
 
 ## Building
 
@@ -23,17 +23,17 @@ AudioTag is an audio metadata editor for macOS powered by TagLib.
 git clone https://github.com/foyoodo/AudioTag.git
 ```
 
-### Install [Mise](https://github.com/jdx/mise) (Recommended)
+### Install [Tuist](https://github.com/tuist/tuist)
 
-#### Homebrew
+#### [Mise](https://github.com/jdx/mise) (Recommended)
+
+##### Install Mise
 
 ```bash
 brew install mise
 ```
 
-### Install [Tuist](https://github.com/tuist/tuist)
-
-#### Mise (Optional)
+##### Install Tuist
 
 Open the project folder in your terminal, then
 
@@ -56,7 +56,7 @@ tuist generate --no-binary-cache
 
 ### Build and Run
 
-Command+R
+<kbd>⌘ Command</kbd> + <kbd>R</kbd>
 
 ## License
 
