@@ -1,5 +1,5 @@
 {
-  "originHash" : "429f94a9b22871ef4942635d72806c5d4b42085043df753fcf6685fa8ae1872c",
+  "originHash" : "e080d7bc691b418f8be31e8789e60f1f86407de9ebf86480d0d08ce9d67bd504",
   "pins" : [
     {
       "identity" : "cxxtaglib",
@@ -16,7 +16,7 @@
       "location" : "https://github.com/OtoFlow/TagLib-Swift.git",
       "state" : {
         "branch" : "main",
-        "revision" : "58d862e83066924759f42024b19849209bc065ec"
+        "revision" : "56c67cdd9c3d6d2f712042fbdec287bb25db9873"
       }
     }
   ],
