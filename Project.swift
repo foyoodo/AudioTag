@@ -18,8 +18,10 @@ let project = Project(
                     ]
                 ]
             ]),
-            sources: ["AudioTag/Sources/**"],
-            resources: ["AudioTag/Resources/**"],
+            buildableFolders: [
+                "AudioTag/Sources",
+                "AudioTag/Resources",
+            ],
             dependencies: [
                 .external(name: "TagLib-Swift"),
             ]
@@ -30,8 +32,7 @@ let project = Project(
             product: .unitTests,
             bundleId: "com.foyoodo.AudioTagTests",
             infoPlist: .default,
-            sources: ["AudioTag/Tests/**"],
-            resources: [],
+            buildableFolders: ["AudioTag/Tests"],
             dependencies: [.target(name: "AudioTag")]
         ),
     ]

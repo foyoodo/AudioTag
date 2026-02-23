@@ -1,0 +1,3 @@
+[submodule "Frameworks/TagLib-Swift"]
+	path = Frameworks/TagLib-Swift
+	url = git@github.com:OtoFlow/TagLib-Swift.git
