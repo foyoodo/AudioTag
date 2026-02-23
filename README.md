@@ -52,7 +52,7 @@ brew install tuist@x.xx.x # version in .mise.toml
 
 ```bas
 tuist install
-tuist generate --no-binary-cache
+tuist generate --cache-profile none
 ```
 
 ### Build and Run

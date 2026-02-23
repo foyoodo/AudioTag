@@ -11,6 +11,8 @@ import TagLib_Swift
 
 @Observable
 final class AudioFileItem: Identifiable, Hashable {
+    private static let yearPattern = /^(19|20)\d{2}$/
+
     var id: URL { file.url }
 
     var file: FileItem
@@ -46,7 +48,12 @@ final class AudioFileItem: Identifiable, Hashable {
     }
 
     var year: String {
-        didSet { audioFile.year = .init(year) }
+        didSet {
+            let year = year.trimmingCharacters(in: .whitespacesAndNewlines)
+            if year.wholeMatch(of: Self.yearPattern) != nil {
+                audioFile.year = UInt(year)
+            }
+        }
     }
 
     var track: String {
@@ -66,8 +73,8 @@ final class AudioFileItem: Identifiable, Hashable {
         album = audioFile.album ?? ""
         comment = audioFile.comment ?? ""
         genre = audioFile.genre ?? ""
-        year = (audioFile.year).map { "\($0)" } ?? ""
-        track = (audioFile.track).map { "\($0)" } ?? ""
+        year = audioFile.year.map { "\($0)" } ?? ""
+        track = audioFile.track.map { "\($0)" } ?? ""
         picture = audioFile.pictures?.first
     }
 
