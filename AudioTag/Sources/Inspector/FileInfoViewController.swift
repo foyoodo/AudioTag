@@ -292,14 +292,20 @@ final class FileInfoViewController: NSViewController, TrackInspecting {
     if let metadata = track.metadata {
       info.append(("Kind", metadata.kind))
       if let properties = metadata.properties {
-        info += [
-          ("Duration", Format.duration(properties.duration)),
-          ("Bit Rate", Format.bitrate(properties.bitrate)),
-          ("Sample Rate", Format.sampleRate(properties.sampleRate)),
-          ("Channels", Format.channels(properties.channels)),
-        ]
+        // What a format doesn't record is zero, as a module's sample rate is: left out.
+        info.append(("Duration", Format.duration(properties.duration)))
+        if properties.bitrate > 0 { info.append(("Bit Rate", Format.bitrate(properties.bitrate))) }
+        if properties.sampleRate > 0 {
+          info.append(("Sample Rate", Format.sampleRate(properties.sampleRate)))
+        }
+        if properties.channels > 0 {
+          info.append(("Channels", Format.channels(properties.channels)))
+        }
         if let bits = properties.bitsPerSample { info.append(("Bit Depth", "\(bits)-bit")) }
         if properties.isEncrypted { info.append(("Protected", "Yes")) }
+      } else {
+        // Read for every track, they're missing only where TagLib couldn't read the audio.
+        info.append(("Audio", "Can’t be read"))
       }
     } else if let error = track.readError {
       info.append(("Error", error.message))

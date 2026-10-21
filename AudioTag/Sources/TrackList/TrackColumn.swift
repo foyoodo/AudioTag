@@ -125,8 +125,10 @@ enum TrackColumn: String, CaseIterable {
     case .name: track.name
     case .kind: metadata?.kind ?? ""
     case .duration: properties.map { Format.duration($0.duration) } ?? ""
-    case .bitrate: properties.map { Format.bitrate($0.bitrate) } ?? ""
-    case .sampleRate: properties.map { Format.sampleRate($0.sampleRate) } ?? ""
+    // What a format doesn't record is zero, as a module's sample rate is: left blank.
+    case .bitrate: properties.flatMap { $0.bitrate > 0 ? Format.bitrate($0.bitrate) : nil } ?? ""
+    case .sampleRate:
+      properties.flatMap { $0.sampleRate > 0 ? Format.sampleRate($0.sampleRate) : nil } ?? ""
     case .tagFormats: metadata?.tagFormats.map(\.name).joined(separator: ", ") ?? ""
     default: ""
     }
