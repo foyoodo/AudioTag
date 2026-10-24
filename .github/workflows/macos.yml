@@ -1,15 +1,17 @@
 # Build and package AudioTag for macOS.
 #
-# Two unsigned (ad-hoc) variants:
+# Two ad-hoc-signed (not notarized) variants. These file names are stable and
+# consumed by the Homebrew cask in foyoodo/homebrew-tap:
 #   - arm64-only  → AudioTag-arm64.zip / .dmg
 #   - universal   → AudioTag-universal.zip / .dmg  (arm64 + x86_64)
 #
 # Assumptions:
 #   - macos-26 (Apple Silicon) with Xcode 26.x. The project requires Xcode 26
 #     (Swift 6 + Icon Composer). Tuist.swift allows 26 and 27.
-#   - TagLib-Swift (and upstream TagLib) are git submodules; both are public.
-#   - No Apple signing secrets. CODE_SIGNING_ALLOWED=NO. Signing/notarization
-#     can be added later via secrets without changing the packaging layout.
+#   - TagLib-Swift and upstream TagLib are public git submodules (HTTPS).
+#   - No Apple signing secrets. The app is ad-hoc signed after the build so a
+#     quarantined download is "unidentified developer", not "damaged".
+#     Developer ID / notarization can be added later via secrets.
 
 name: macOS build
 
@@ -51,12 +53,11 @@ jobs:
       DERIVED_DATA: ${{ github.workspace }}/build/DerivedData
 
     steps:
-      - name: Use HTTPS for GitHub submodules
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
-
       - name: Check out
         uses: actions/checkout@v5
         with:
+          # TagLib-Swift and its nested taglib submodule both use HTTPS URLs
+          # in .gitmodules, so no git@github.com → HTTPS rewrite is needed.
           submodules: recursive
 
       - name: Confirm TagLib sources
@@ -104,6 +105,12 @@ jobs:
       - name: Generate the Xcode workspace
         run: tuist generate --no-open --cache-profile none
 
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "MARKETING_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "CFBundleShortVersionString will be ${GITHUB_REF_NAME#v}"
+
       - name: Build
         run: |
           set -euo pipefail
@@ -115,6 +122,11 @@ jobs:
             EXCLUDED="x86_64"
           else
             EXCLUDED=""
+          fi
+
+          VERSION_ARGS=()
+          if [[ -n "${MARKETING_VERSION:-}" ]]; then
+            VERSION_ARGS+=(MARKETING_VERSION="$MARKETING_VERSION")
           fi
 
           xcodebuild build \
@@ -131,7 +143,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="-" \
-            MACOSX_DEPLOYMENT_TARGET=14.0 \
+            "${VERSION_ARGS[@]}" \
             | xcbeautify --quieter
 
       - name: Package and verify architectures

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Package AudioTag.app as zip + dmg and verify Mach-O slices with lipo.
+# Ad-hoc sign AudioTag.app, verify architectures with lipo, then zip + dmg.
 #
 # Expected environment:
 #   APP_PATH     path to AudioTag.app
@@ -74,6 +74,8 @@ verify_binary() {
 echo "=== App executable ==="
 file "$APP_BIN"
 verify_binary "$APP_BIN"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist" \
+  || true
 
 echo "=== Mach-O files inside the .app ==="
 found_bundle_macho=0
@@ -106,6 +108,32 @@ if [[ -n "$DERIVED_DATA" && -d "$DERIVED_DATA" ]]; then
     echo "TagLib is statically linked; the app executable slices are the check."
   fi
 fi
+
+echo "=== Ad-hoc sign (nested code inside-out, then the bundle) ==="
+# Collect nested Mach-O (helpers, dylibs, framework binaries) deepest first,
+# then sign the .app. --deep is avoided so entitlements stay on the bundle only.
+while IFS= read -r nested; do
+  [[ -z "$nested" ]] && continue
+  echo "codesign --force --sign - $nested"
+  codesign --force --sign - --timestamp=none "$nested"
+done < <(
+  find "$APP_PATH" -type f -print0 \
+    | while IFS= read -r -d '' candidate; do
+        if is_macho "$candidate"; then
+          printf '%s\n' "$candidate"
+        fi
+      done \
+    | awk -F/ '{ print NF, $0 }' \
+    | sort -nr \
+    | awk '{ $1=""; sub(/^ /,""); print }'
+)
+
+echo "codesign --force --sign - $APP_PATH"
+codesign --force --sign - --timestamp=none "$APP_PATH"
+
+echo "=== codesign --verify --deep --strict ==="
+codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+codesign -dv --verbose=4 "$APP_PATH" 2>&1 || true
 
 mkdir -p dist
 STAGING="$(mktemp -d)"
