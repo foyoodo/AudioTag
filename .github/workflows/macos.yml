@@ -1,0 +1,180 @@
+# Build and package AudioTag for macOS.
+#
+# Two unsigned (ad-hoc) variants:
+#   - arm64-only  → AudioTag-arm64.zip / .dmg
+#   - universal   → AudioTag-universal.zip / .dmg  (arm64 + x86_64)
+#
+# Assumptions:
+#   - macos-26 (Apple Silicon) with Xcode 26.x. The project requires Xcode 26
+#     (Swift 6 + Icon Composer). Tuist.swift allows 26 and 27.
+#   - TagLib-Swift (and upstream TagLib) are git submodules; both are public.
+#   - No Apple signing secrets. CODE_SIGNING_ALLOWED=NO. Signing/notarization
+#     can be added later via secrets without changing the packaging layout.
+
+name: macOS build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: macos-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Pin to the current default on macos-26; fallback is handled in the job.
+  XCODE_APP: /Applications/Xcode_26.6.app
+
+jobs:
+  build:
+    name: Build (${{ matrix.variant }})
+    runs-on: macos-26
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: arm64
+            archs: arm64
+          - variant: universal
+            archs: arm64 x86_64
+
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ARCHS_VALUE: ${{ matrix.archs }}
+      DERIVED_DATA: ${{ github.workspace }}/build/DerivedData
+
+    steps:
+      - name: Use HTTPS for GitHub submodules
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Confirm TagLib sources
+        run: |
+          git submodule status --recursive
+          test -f Frameworks/TagLib-Swift/Sources/CTagLib/taglib/taglib/tag.h
+          test -f Frameworks/TagLib-Swift/Package.swift
+
+      - name: Cache identity
+        id: cache-meta
+        run: |
+          sha="$(git submodule status --recursive | awk '{print $1}' | tr -d '\n')"
+          echo "submodules=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode
+        run: |
+          if [[ -d "$XCODE_APP" ]]; then
+            sudo xcode-select -s "$XCODE_APP"
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcode-select -p
+          xcodebuild -version
+
+      - name: Install Tuist
+        uses: jdx/mise-action@v3
+        with:
+          install_args: tuist
+          cache: true
+
+      - name: Cache Tuist / SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            Tuist/.build
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-tuist-spm-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Frameworks/TagLib-Swift/Package.swift') }}-${{ steps.cache-meta.outputs.submodules }}
+          restore-keys: |
+            ${{ runner.os }}-tuist-spm-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Frameworks/TagLib-Swift/Package.swift') }}-
+            ${{ runner.os }}-tuist-spm-
+
+      - name: Install Swift packages
+        run: tuist install
+
+      - name: Generate the Xcode workspace
+        run: tuist generate --no-open --cache-profile none
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          ARCH_FLAGS=()
+          for arch in $ARCHS_VALUE; do
+            ARCH_FLAGS+=(-arch "$arch")
+          done
+
+          # Empty EXCLUDED_ARCHS so Apple Silicon runners don't drop x86_64
+          # from the universal build. arm64-only excludes Intel.
+          if [[ "$VARIANT" == "arm64" ]]; then
+            EXCLUDED="x86_64"
+          else
+            EXCLUDED=""
+          fi
+
+          xcodebuild build \
+            -workspace AudioTag.xcworkspace \
+            -scheme AudioTag \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$DERIVED_DATA" \
+            "${ARCH_FLAGS[@]}" \
+            ARCHS="$ARCHS_VALUE" \
+            EXCLUDED_ARCHS="$EXCLUDED" \
+            ONLY_ACTIVE_ARCH=NO \
+            BUILD_ACTIVE_RESOURCES_ONLY=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="-" \
+            MACOSX_DEPLOYMENT_TARGET=14.0 \
+            | xcbeautify --quieter
+
+      - name: Package and verify architectures
+        env:
+          APP_PATH: ${{ env.DERIVED_DATA }}/Build/Products/Release/AudioTag.app
+        run: bash scripts/ci-package-macos.sh
+
+      - name: Upload ${{ matrix.variant }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioTag-${{ matrix.variant }}
+          path: |
+            dist/AudioTag-${{ matrix.variant }}.zip
+            dist/AudioTag-${{ matrix.variant }}.dmg
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: AudioTag-*
+          merge-multiple: true
+          path: dist
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/AudioTag-arm64.zip
+            dist/AudioTag-arm64.dmg
+            dist/AudioTag-universal.zip
+            dist/AudioTag-universal.dmg
+          generate_release_notes: true
+          fail_on_unmatched_files: true

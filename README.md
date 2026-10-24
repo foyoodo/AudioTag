@@ -102,6 +102,19 @@ tuist generate --cache-profile none
 Open `AudioTag.xcworkspace`, then <kbd>⌘</kbd> <kbd>R</kbd>. <kbd>⌘</kbd> <kbd>U</kbd> runs
 the tests.
 
+## CI builds
+
+GitHub Actions builds two unsigned packages on every push to `main`, pull request,
+manual run, and version tag (`v*`):
+
+- **AudioTag-arm64** — Apple Silicon
+- **AudioTag-universal** — Apple Silicon and Intel (`arm64` + `x86_64`)
+
+Download the zip or disk image from the workflow run's artifacts. On a `v*` tag
+the same files are attached to the [GitHub Release](https://github.com/foyoodo/AudioTag/releases).
+The builds are not notarized; macOS Gatekeeper will ask you to open the app from
+the context menu the first time.
+
 ## Contributing
 
 Format the code with swift-format, as `.swift-format` configures it, before committing:
