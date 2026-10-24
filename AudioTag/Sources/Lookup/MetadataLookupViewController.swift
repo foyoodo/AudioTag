@@ -233,7 +233,7 @@ final class MetadataLookupViewController: NSViewController {
     emptyState.isHidden = true
     statusLabel.stringValue = "Searching…"
     let query = query
-    searchTask = Task { [weak self, service] in
+    searchTask = Task { @MainActor [weak self, service] in
       let result: Result<[MetadataCandidate], Error>
       do {
         result = .success(try await service.search(query))
@@ -285,7 +285,7 @@ final class MetadataLookupViewController: NSViewController {
     coverTask?.cancel()
     let candidates = candidates
     let service = service
-    coverTask = Task { [weak self] in
+    coverTask = Task { @MainActor [weak self] in
       guard let self else { return }
       await withTaskGroup(of: (String, Data?).self) { group in
         var next = 0
@@ -382,7 +382,7 @@ final class MetadataLookupViewController: NSViewController {
   private func loadSelectedArtwork(_ candidate: MetadataCandidate) {
     selectedArtwork = nil
     let service = service
-    Task { [weak self] in
+    Task { @MainActor [weak self] in
       let data = try? await service.image(for: candidate, size: .full)
       guard !Task.isCancelled, let self, selectedCandidate?.id == candidate.id else { return }
       selectedArtwork = data
@@ -414,14 +414,20 @@ final class MetadataLookupViewController: NSViewController {
     let changes = selectedChanges
     let applyArtwork = artworkCheckbox.state == .on
     let artwork = selectedArtwork
-    applyTask = Task { [weak self, service, library, track] in
+    applyTask = Task { @MainActor [weak self] in
+      guard let self else { return }
       var picture: Picture?
       if applyArtwork {
-        let data = artwork ?? (try? await service.image(for: candidate, size: .full))
+        let data: Data?
+        if let artwork {
+          data = artwork
+        } else {
+          data = try? await self.service.image(for: candidate, size: .full)
+        }
         picture = data.flatMap { Picture(imageData: $0, type: nil) }
       }
-      await MetadataLookup.apply(changes, artwork: picture, to: track, library: library)
-      self?.onFinish?()
+      await MetadataLookup.apply(changes, artwork: picture, to: self.track, library: self.library)
+      self.onFinish?()
     }
   }
 
