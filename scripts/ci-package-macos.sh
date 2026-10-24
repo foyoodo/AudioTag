@@ -2,6 +2,10 @@
 # Ad-hoc sign AudioTag.app with sandbox entitlements, verify architectures
 # with lipo, then zip + dmg using versioned file names.
 #
+# Sparkle.framework is signed inside-out (XPC services, Autoupdate, Updater.app,
+# then the framework) without --deep, preserving helper entitlements. The app
+# bundle is signed last with the Tuist-generated sandbox entitlements.
+#
 # Expected environment:
 #   APP_PATH     path to AudioTag.app
 #   VARIANT      arm64 | universal
@@ -104,6 +108,53 @@ find_entitlements() {
     2>/dev/null | head -1
 }
 
+# Ad-hoc sign a Sparkle helper, keeping identifier / entitlements / hardened
+# runtime flags from the copy that shipped inside the XCFramework.
+codesign_sparkle_helper() {
+  local target="$1"
+  echo "codesign --force --sign - --preserve-metadata $target"
+  if ! codesign --force --sign - --timestamp=none \
+    --preserve-metadata=identifier,entitlements,flags,runtime "$target"; then
+    codesign --force --sign - --timestamp=none \
+      --preserve-metadata=identifier,flags,runtime "$target"
+  fi
+}
+
+# Sparkle's XCFramework ships a universal macOS slice. The arm64-only package
+# must not contain x86_64, so extra architectures are stripped before signing.
+thin_to_expected_archs() {
+  local path="$1"
+  local info tmp mode
+  if ! is_macho "$path"; then
+    return 0
+  fi
+  info="$(lipo -info "$path")"
+  if [[ "$VARIANT" != "arm64" ]] || ! grep -qw x86_64 <<<"$info"; then
+    return 0
+  fi
+  echo "lipo -thin arm64 $path"
+  tmp="$(mktemp)"
+  lipo "$path" -thin arm64 -output "$tmp"
+  if mode="$(stat -f %Lp "$path" 2>/dev/null)"; then
+    chmod "$mode" "$tmp"
+  elif [[ -x "$path" ]]; then
+    chmod +x "$tmp"
+  fi
+  mv "$tmp" "$path"
+}
+
+# Unique real paths under Sparkle.framework (find does not follow dir symlinks,
+# so Versions/Current duplicates are skipped).
+sparkle_paths() {
+  local fw="$1"
+  local name="$2"
+  find "$fw" -name "$name" \( -type d -o -type f \) -print \
+    | while IFS= read -r path; do
+        python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$path"
+      done \
+    | awk 'NF && !seen[$0]++'
+}
+
 echo "=== App executable ==="
 file "$APP_BIN"
 verify_binary "$APP_BIN"
@@ -134,6 +185,15 @@ echo "ASSET_STEM=$ASSET_STEM"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "asset_stem=$ASSET_STEM" >> "$GITHUB_OUTPUT"
 fi
+
+echo "=== Thin extra architectures ==="
+while IFS= read -r -d '' macho; do
+  thin_to_expected_archs "$macho"
+done < <(find "$APP_PATH" -type f -print0 | while IFS= read -r -d '' candidate; do
+  if is_macho "$candidate"; then
+    printf '%s\0' "$candidate"
+  fi
+done)
 
 echo "=== Mach-O files inside the .app ==="
 found_bundle_macho=0
@@ -179,6 +239,9 @@ echo "=== Ad-hoc sign (nested code without entitlements, bundle with entitlement
 while IFS= read -r nested; do
   [[ -z "$nested" ]] && continue
   [[ "$nested" == "$APP_BIN" ]] && continue
+  # Sparkle helpers are bundles that must keep their own entitlements; signing
+  # their inner Mach-O files here would strip them. Handled below.
+  [[ "$nested" == *"/Sparkle.framework/"* ]] && continue
   echo "codesign --force --sign - $nested"
   codesign --force --sign - --timestamp=none "$nested"
 done < <(
@@ -192,6 +255,30 @@ done < <(
     | sort -nr \
     | awk '{ $1=""; sub(/^ /,""); print }'
 )
+
+SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+if [[ ! -d "$SPARKLE_FW" ]]; then
+  echo "::error::Sparkle.framework is missing from $APP_PATH/Contents/Frameworks"
+  exit 1
+fi
+
+echo "=== Ad-hoc sign Sparkle helpers (inside-out, no --deep) ==="
+while IFS= read -r xpc; do
+  [[ -z "$xpc" ]] && continue
+  codesign_sparkle_helper "$xpc"
+done < <(sparkle_paths "$SPARKLE_FW" "*.xpc")
+
+while IFS= read -r helper; do
+  [[ -z "$helper" ]] && continue
+  codesign_sparkle_helper "$helper"
+done < <(sparkle_paths "$SPARKLE_FW" "Autoupdate")
+
+while IFS= read -r updater; do
+  [[ -z "$updater" ]] && continue
+  codesign_sparkle_helper "$updater"
+done < <(sparkle_paths "$SPARKLE_FW" "Updater.app")
+
+codesign_sparkle_helper "$SPARKLE_FW"
 
 echo "codesign --force --sign - --entitlements $ENTITLEMENTS $APP_PATH"
 codesign --force --sign - --timestamp=none --entitlements "$ENTITLEMENTS" "$APP_PATH"
@@ -221,8 +308,13 @@ try:
     data = plistlib.loads(raw)
 except Exception:
     text = raw.decode("utf-8", "replace")
-    if "com.apple.security.app-sandbox" in text and re.search(
-        r"app-sandbox(?:</key>)?\s*(?:<true\s*/>|true|\[Bool\] true)", text, re.I | re.S
+    if (
+        "com.apple.security.app-sandbox" in text
+        and re.search(
+            r"app-sandbox(?:</key>)?\s*(?:<true\s*/>|true|\[Bool\] true)", text, re.I | re.S
+        )
+        and "com.foyoodo.AudioTag-spks" in text
+        and "com.foyoodo.AudioTag-spki" in text
     ):
         sys.exit(0)
     raise SystemExit("could not parse entitlements dump") from None
@@ -231,8 +323,105 @@ value = data.get("com.apple.security.app-sandbox")
 print("com.apple.security.app-sandbox =", value)
 if value is not True:
     raise SystemExit("com.apple.security.app-sandbox is not true")
+
+lookup = data.get("com.apple.security.temporary-exception.mach-lookup.global-name")
+print("mach-lookup.global-name =", lookup)
+if not isinstance(lookup, list):
+    raise SystemExit("Sparkle mach-lookup exception is missing")
+needed = {
+    "com.foyoodo.AudioTag-spks",
+    "com.foyoodo.AudioTag-spki",
+}
+if not needed.issubset(set(lookup)):
+    raise SystemExit(f"Sparkle mach-lookup ports missing; have {lookup!r}")
 PY
 echo "Sandbox entitlement com.apple.security.app-sandbox is present and true."
+echo "Sparkle mach-lookup exceptions -spks and -spki are present."
+
+echo "=== Sparkle Info.plist keys ==="
+python3 - "$INFO_PLIST" <<'PY'
+import os, pathlib, plistlib, sys
+
+info = plistlib.loads(pathlib.Path(sys.argv[1]).read_bytes())
+feed = info.get("SUFeedURL")
+print("SUFeedURL =", feed)
+if not isinstance(feed, str) or not feed.startswith("https://"):
+    raise SystemExit("SUFeedURL must be an https URL")
+
+installer = info.get("SUEnableInstallerLauncherService")
+print("SUEnableInstallerLauncherService =", installer)
+if installer not in (True, "YES", "true", 1):
+    raise SystemExit("SUEnableInstallerLauncherService must be true")
+
+downloader = info.get("SUEnableDownloaderService")
+print("SUEnableDownloaderService =", downloader)
+if downloader not in (True, "YES", "true", 1):
+    raise SystemExit("SUEnableDownloaderService must be true")
+
+# The key must exist. Empty is allowed on PRs and main; a v* tag cannot ship
+# clients that will never verify an update.
+if "SUPublicEDKey" not in info:
+    raise SystemExit("SUPublicEDKey is missing from Info.plist")
+key = str(info.get("SUPublicEDKey") or "").strip()
+is_version_tag = os.environ.get("GITHUB_REF", "").startswith("refs/tags/v")
+if not key:
+    if is_version_tag:
+        raise SystemExit(
+            "SUPublicEDKey is empty on a v* tag build. Set SPARKLE_PUBLIC_ED_KEY "
+            "in Project.swift before tagging; shipped clients cannot be given a "
+            "public key later."
+        )
+    print("SUPublicEDKey is empty (set SPARKLE_PUBLIC_ED_KEY before a v* tag)")
+else:
+    print("SUPublicEDKey is set")
+PY
+
+echo "=== Sparkle.framework and XPC services ==="
+require_signed() {
+  local path="$1"
+  if [[ ! -e "$path" ]]; then
+    echo "::error::Missing $path"
+    exit 1
+  fi
+  echo "codesign --verify --deep --strict $path"
+  codesign --verify --deep --strict --verbose=2 "$path"
+  codesign -dv --verbose=2 "$path" 2>&1 | sed -n '1,12p' || true
+}
+
+require_signed "$SPARKLE_FW"
+
+found_installer=0
+found_downloader=0
+while IFS= read -r xpc; do
+  [[ -z "$xpc" ]] && continue
+  base="$(basename "$xpc")"
+  require_signed "$xpc"
+  case "$base" in
+    Installer.xpc) found_installer=1 ;;
+    Downloader.xpc) found_downloader=1 ;;
+  esac
+done < <(sparkle_paths "$SPARKLE_FW" "*.xpc")
+
+if [[ "$found_installer" -ne 1 ]]; then
+  echo "::error::Sparkle Installer.xpc is missing (required for the App Sandbox)"
+  exit 1
+fi
+if [[ "$found_downloader" -ne 1 ]]; then
+  echo "::error::Sparkle Downloader.xpc is missing (required without network.client)"
+  exit 1
+fi
+
+while IFS= read -r helper; do
+  [[ -z "$helper" ]] && continue
+  require_signed "$helper"
+done < <(sparkle_paths "$SPARKLE_FW" "Autoupdate")
+
+while IFS= read -r updater; do
+  [[ -z "$updater" ]] && continue
+  require_signed "$updater"
+done < <(sparkle_paths "$SPARKLE_FW" "Updater.app")
+
+echo "Sparkle.framework, Installer.xpc, and Downloader.xpc are present and signed."
 
 mkdir -p dist
 STAGING="$(mktemp -d)"

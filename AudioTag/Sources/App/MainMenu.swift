@@ -10,7 +10,7 @@ import AppKit
 /// The menu bar, built in code.
 @MainActor
 enum MainMenu {
-  static func make() -> NSMenu {
+  static func make(checkForUpdatesTarget: AnyObject) -> NSMenu {
     let name = ProcessInfo.processInfo.processName
     let servicesMenu = NSMenu(title: "Services")
     let windowMenu = menu(
@@ -22,6 +22,8 @@ enum MainMenu {
         item("Bring All to Front", #selector(NSApplication.arrangeInFront(_:))),
       ])
     let helpMenu = menu("Help", [])
+    let checkForUpdates = item("Check for Updates…", Selector(("checkForUpdates:")))
+    checkForUpdates.target = checkForUpdatesTarget
 
     let mainMenu = NSMenu()
     for submenuMenu in [
@@ -29,6 +31,8 @@ enum MainMenu {
         name,
         [
           item("About \(name)", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+          .separator(),
+          checkForUpdates,
           .separator(),
           submenu(servicesMenu),
           .separator(),
