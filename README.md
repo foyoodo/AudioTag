@@ -122,8 +122,8 @@ short commit SHA, for example `AudioTag-0.1.1-abc1234-arm64.zip`. Download them
 from the workflow run's artifacts. On a `v*` tag the same files are attached to
 the [GitHub Release](https://github.com/foyoodo/AudioTag/releases), along with
 an EdDSA-signed `appcast.xml` for Sparkle (the universal zip is the update
-archive). The appcast is skipped with a warning if the `SPARKLE_ED_PRIVATE_KEY`
-repository secret is unset.
+archive). A tag build fails if `SPARKLE_PUBLIC_ED_KEY` is empty or the
+`SPARKLE_ED_PRIVATE_KEY` repository secret is unset.
 
 The builds are not notarized. After moving the app to `/Applications`, allow it
 in **System Settings › Privacy & Security › Open Anyway**, or clear the

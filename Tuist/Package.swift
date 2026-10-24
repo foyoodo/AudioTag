@@ -13,6 +13,8 @@ let package = Package(
   name: "AudioTag",
   dependencies: [
     .package(path: "../Frameworks/TagLib-Swift"),
-    .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.1"),
+    // Keep this exact version in sync with SPARKLE_TOOLS_VERSION in
+    // scripts/ci-generate-appcast.sh (generate_appcast / generate_keys).
+    .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
   ]
 )

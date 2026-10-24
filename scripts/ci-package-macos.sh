@@ -340,7 +340,7 @@ echo "Sparkle mach-lookup exceptions -spks and -spki are present."
 
 echo "=== Sparkle Info.plist keys ==="
 python3 - "$INFO_PLIST" <<'PY'
-import pathlib, plistlib, sys
+import os, pathlib, plistlib, sys
 
 info = plistlib.loads(pathlib.Path(sys.argv[1]).read_bytes())
 feed = info.get("SUFeedURL")
@@ -358,10 +358,22 @@ print("SUEnableDownloaderService =", downloader)
 if downloader not in (True, "YES", "true", 1):
     raise SystemExit("SUEnableDownloaderService must be true")
 
-# May be empty until SPARKLE_PUBLIC_ED_KEY is set; the key itself must exist.
+# The key must exist. Empty is allowed on PRs and main; a v* tag cannot ship
+# clients that will never verify an update.
 if "SUPublicEDKey" not in info:
     raise SystemExit("SUPublicEDKey is missing from Info.plist")
-print("SUPublicEDKey is set" if info.get("SUPublicEDKey") else "SUPublicEDKey is empty (set SPARKLE_PUBLIC_ED_KEY before a Sparkle-enabled tag)")
+key = str(info.get("SUPublicEDKey") or "").strip()
+is_version_tag = os.environ.get("GITHUB_REF", "").startswith("refs/tags/v")
+if not key:
+    if is_version_tag:
+        raise SystemExit(
+            "SUPublicEDKey is empty on a v* tag build. Set SPARKLE_PUBLIC_ED_KEY "
+            "in Project.swift before tagging; shipped clients cannot be given a "
+            "public key later."
+        )
+    print("SUPublicEDKey is empty (set SPARKLE_PUBLIC_ED_KEY before a v* tag)")
+else:
+    print("SUPublicEDKey is set")
 PY
 
 echo "=== Sparkle.framework and XPC services ==="

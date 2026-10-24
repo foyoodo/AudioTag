@@ -2,25 +2,24 @@
 # Sign a Sparkle appcast for the universal zip with generate_appcast.
 #
 # Expected environment:
-#   SPARKLE_ED_PRIVATE_KEY  base64 EdDSA private key (GitHub secret). If unset
-#                           or empty, the script warns and exits 0 so the
-#                           GitHub Release still publishes the zip/dmg assets.
+#   SPARKLE_ED_PRIVATE_KEY  base64 EdDSA private key (GitHub secret). Required
+#                           on v* tags; the release job fails if it is missing.
 #   GITHUB_REPOSITORY       owner/repo, e.g. foyoodo/AudioTag
 #   GITHUB_REF_NAME         git tag, e.g. v0.1.1
 #   DIST_DIR                directory with AudioTag-*-universal.zip (default: dist)
-#   SPARKLE_TOOLS_VERSION   Sparkle distribution that provides generate_appcast
-#                           (default: 2.9.1; must include --ed-key-file)
+#   SPARKLE_TOOLS_VERSION   Sparkle distribution that provides generate_appcast.
+#                           Must match the exact Sparkle package in Tuist/Package.swift.
 set -euo pipefail
 
 DIST_DIR="${DIST_DIR:-dist}"
-SPARKLE_TOOLS_VERSION="${SPARKLE_TOOLS_VERSION:-2.9.1}"
+# Keep in sync with the exact Sparkle package version in Tuist/Package.swift.
+SPARKLE_TOOLS_VERSION="${SPARKLE_TOOLS_VERSION:-2.10.0}"
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 TAG="${GITHUB_REF_NAME:?GITHUB_REF_NAME is required}"
 ASSET_ROOT="${DIST_DIR}/release-assets"
 
 mkdir -p "$ASSET_ROOT"
-# Zip/dmg names are AudioTag-<version>-<variant>.{zip,dmg}. Copy only those so
-# a skipped appcast still leaves a non-empty release-assets directory.
+# Zip/dmg names are AudioTag-<version>-<variant>.{zip,dmg}.
 shopt -s nullglob
 packages=("$DIST_DIR"/AudioTag-*-arm64.zip "$DIST_DIR"/AudioTag-*-arm64.dmg \
   "$DIST_DIR"/AudioTag-*-universal.zip "$DIST_DIR"/AudioTag-*-universal.dmg)
@@ -41,9 +40,8 @@ trim() {
 
 PRIVATE_KEY="$(trim "${SPARKLE_ED_PRIVATE_KEY:-}")"
 if [[ -z "$PRIVATE_KEY" ]]; then
-  echo "::warning::SPARKLE_ED_PRIVATE_KEY is not set; skipping Sparkle appcast. The zip and dmg will still be attached. Auto-updates will not be published for this release until the secret is configured and SPARKLE_PUBLIC_ED_KEY in Project.swift matches the public key."
-  ls -lh "$ASSET_ROOT"
-  exit 0
+  echo "::error::SPARKLE_ED_PRIVATE_KEY is not set. A v* tag must publish an EdDSA-signed appcast; set the repository secret before tagging. Clients shipped without a matching SPARKLE_PUBLIC_ED_KEY cannot verify updates later."
+  exit 1
 fi
 
 shopt -s nullglob
@@ -92,7 +90,8 @@ if [[ -z "$APP_PLIST" ]]; then
 fi
 PUBLIC_KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP_PLIST" 2>/dev/null || true)"
 if [[ -z "$(trim "$PUBLIC_KEY")" ]]; then
-  echo "::warning::SUPublicEDKey is empty in the packaged app. The appcast will be signed, but this build cannot verify updates until SPARKLE_PUBLIC_ED_KEY is set in Project.swift and a new version is released."
+  echo "::error::SUPublicEDKey is empty in the packaged app. Set SPARKLE_PUBLIC_ED_KEY in Project.swift before tagging; shipped clients cannot be given a public key later."
+  exit 1
 fi
 
 DOWNLOAD_PREFIX="https://github.com/${REPO}/releases/download/${TAG}/"

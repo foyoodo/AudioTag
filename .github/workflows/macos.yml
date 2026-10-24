@@ -4,8 +4,8 @@
 # from the app's Info.plist (Project.swift MARKETING_VERSION). On v* tags that
 # is AudioTag-<version>-arm64.zip; on other builds a short SHA is appended.
 # The Homebrew cask in foyoodo/homebrew-tap should match these names.
-# On v* tags the release job also signs Sparkle's appcast.xml from the
-# universal zip when SPARKLE_ED_PRIVATE_KEY is set.
+# On v* tags the release job signs Sparkle's appcast.xml from the universal
+# zip. SPARKLE_ED_PRIVATE_KEY and SPARKLE_PUBLIC_ED_KEY are required then.
 #
 # Assumptions:
 #   - macos-26 (Apple Silicon) with Xcode 26.x. The project requires Xcode 26
@@ -175,6 +175,8 @@ jobs:
       - name: Generate Sparkle appcast
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          # Must match the exact Sparkle package in Tuist/Package.swift.
+          SPARKLE_TOOLS_VERSION: "2.10.0"
         run: bash scripts/ci-generate-appcast.sh
 
       - name: Attach to GitHub Release

@@ -59,8 +59,9 @@ let project = Project(
         "CURRENT_PROJECT_VERSION": "2",
         "SPARKLE_FEED_URL":
           "https://github.com/foyoodo/AudioTag/releases/latest/download/appcast.xml",
-        // Base64 EdDSA public key from Sparkle's generate_keys. Leave empty until the
-        // matching private key is stored as the SPARKLE_ED_PRIVATE_KEY repo secret.
+        // Base64 EdDSA public key from Sparkle's generate_keys. Empty is allowed on
+        // PRs and main; a v* tag build fails unless this is set, and the release
+        // job fails unless SPARKLE_ED_PRIVATE_KEY matches it.
         "SPARKLE_PUBLIC_ED_KEY": "",
       ])
     ),
