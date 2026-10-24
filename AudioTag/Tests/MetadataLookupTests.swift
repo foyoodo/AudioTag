@@ -98,8 +98,10 @@ struct MetadataQueryTests {
     #expect(
       MusicBrainz.luceneQuery(query)
         == "recording:\"Blow Your Mind\" AND artist:\"Dua Lipa\"")
-    let quoted = MetadataQuery(title: #"Say "hello""#, artist: "", album: "")
-    #expect(MusicBrainz.luceneQuery(quoted) == #"recording:"Say \"hello\""#)
+    let quoted = MetadataQuery(title: "Say \"hello\"", artist: "", album: "")
+    let escaped = MusicBrainz.escape("Say \"hello\"")
+    #expect(escaped == "Say \\\"hello\\\"")
+    #expect(MusicBrainz.luceneQuery(quoted) == "recording:\"\(escaped)\"")
     #expect(MusicBrainz.luceneQuery(MetadataQuery(title: "", artist: "", album: "")).isEmpty)
   }
 
