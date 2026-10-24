@@ -22,8 +22,8 @@ let project = Project(
             "LSItemContentTypes": ["public.audio"],
           ]
         ],
-        // Sparkle 2 (sandboxed): installer XPC is required; the downloader XPC is
-        // used instead of com.apple.security.network.client on the app itself.
+        // Sparkle 2 (sandboxed): installer XPC is required. The downloader XPC
+        // fetches updates; network.client is for metadata lookup, not Sparkle.
         "SUFeedURL": "$(SPARKLE_FEED_URL)",
         "SUPublicEDKey": "$(SPARKLE_PUBLIC_ED_KEY)",
         "SUEnableInstallerLauncherService": true,
@@ -34,13 +34,14 @@ let project = Project(
         "AudioTag/Resources",
       ],
       // Sandboxed, AudioTag reaches only the files and folders the user gives it, and keeps
-      // them as security-scoped bookmarks to reach them after a relaunch.
-      // Mach-lookup exceptions are Sparkle installer status/progress ports; codesign does
-      // not expand $(PRODUCT_BUNDLE_IDENTIFIER), so the bundle ID is written out.
+      // them as security-scoped bookmarks to reach them after a relaunch. Online lookup uses
+      // the network. Mach-lookup exceptions are Sparkle installer status/progress ports;
+      // codesign does not expand $(PRODUCT_BUNDLE_IDENTIFIER), so the bundle ID is written out.
       entitlements: .dictionary([
         "com.apple.security.app-sandbox": true,
         "com.apple.security.files.user-selected.read-write": true,
         "com.apple.security.files.bookmarks.app-scope": true,
+        "com.apple.security.network.client": true,
         "com.apple.security.temporary-exception.mach-lookup.global-name": .array([
           "com.foyoodo.AudioTag-spks",
           "com.foyoodo.AudioTag-spki",

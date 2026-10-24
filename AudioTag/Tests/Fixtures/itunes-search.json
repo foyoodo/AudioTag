@@ -1,0 +1,38 @@
+{
+  "resultCount": 2,
+  "results": [
+    {
+      "wrapperType": "track",
+      "kind": "song",
+      "artistId": 909253,
+      "collectionId": 120954021,
+      "trackId": 120954025,
+      "artistName": "Jack Johnson",
+      "collectionName": "Sing-a-Longs and Lullabies for the Film Curious George",
+      "trackName": "Upside Down",
+      "collectionArtistName": "Jack Johnson",
+      "artworkUrl60": "https://is1-ssl.mzstatic.com/image/thumb/Music/60x60bb.jpg",
+      "artworkUrl100": "https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg",
+      "releaseDate": "2006-02-07T08:00:00Z",
+      "trackTimeMillis": 207266,
+      "trackNumber": 1,
+      "trackCount": 14,
+      "discNumber": 1,
+      "primaryGenreName": "Rock"
+    },
+    {
+      "wrapperType": "track",
+      "kind": "song",
+      "trackId": 42,
+      "artistName": "Dua Lipa",
+      "collectionName": "Dua Lipa",
+      "trackName": "Blow Your Mind (Mwah)",
+      "artworkUrl100": "https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg",
+      "releaseDate": "2016-08-26T12:00:00Z",
+      "trackTimeMillis": 178000,
+      "trackNumber": 6,
+      "trackCount": 12,
+      "primaryGenreName": "Pop"
+    }
+  ]
+}

@@ -32,6 +32,9 @@
 - Browse folders with each file's artwork, and rename, move and trash files and folders,
   with undo.
 - Edits are kept until saved, and all the files edited are listed together to review.
+- Look up a track on [MusicBrainz](https://musicbrainz.org), with cover art from the
+  [Cover Art Archive](https://coverartarchive.org) and [iTunes](https://performance-partners.apple.com/search-api)
+  as a fallback, then choose which tags to apply before saving.
 - Sandboxed: AudioTag reaches only the folders and files you give it, and remembers them.
 - Checks for updates with [Sparkle](https://sparkle-project.org)
   (**AudioTag › Check for Updates…**). On the second launch Sparkle asks whether
@@ -49,11 +52,14 @@ and an inspector of the files selected:
 - The inspector shows the files' artwork, then their tags, lyrics, pictures, other tags, tag
   formats and audio properties, in sections that can be collapsed.
 
-Edits apply as you type, and are saved when you choose **File › Save**.
+Edits apply as you type, and are saved when you choose **File › Save**. **File › Look Up
+Metadata…** searches MusicBrainz for the selected file, with iTunes as a fallback; choose a
+recording and the tags to apply, then save as usual.
 
 | Shortcut | |
 | --- | --- |
 | <kbd>⌘</kbd> <kbd>S</kbd> | Save every file edited |
+| <kbd>⌘</kbd> <kbd>L</kbd> | Look up metadata for the selected file |
 | <kbd>⌘</kbd> <kbd>O</kbd> | Add folders or open files |
 | <kbd>⌘</kbd> <kbd>F</kbd> | Filter the list |
 | <kbd>Return</kbd>, <kbd>⇧</kbd> <kbd>Return</kbd> | In the list, save the field and edit it in the next file, or the one before |

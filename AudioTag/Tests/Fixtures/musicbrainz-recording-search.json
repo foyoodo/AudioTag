@@ -1,0 +1,110 @@
+{
+  "created": "2017-02-23T14:31:36.889Z",
+  "count": 2,
+  "offset": 0,
+  "recordings": [
+    {
+      "id": "026fa041-3917-4c73-9079-ed16e36f20f8",
+      "score": "100",
+      "title": "Blow Your Mind (Mwah)",
+      "length": 178000,
+      "artist-credit": [
+        {
+          "artist": {
+            "id": "6f1a58bf-9b1b-49cf-a44a-6cefad7ae04f",
+            "name": "Dua Lipa",
+            "sort-name": "Lipa, Dua"
+          }
+        }
+      ],
+      "first-release-date": "2016-08-26",
+      "releases": [
+        {
+          "id": "383be31c-37a0-4e08-8cda-cbcbbc587ae5",
+          "title": "Blow Your Mind (Mwah)",
+          "status": "Official",
+          "date": "2016-08-26",
+          "track-count": 1,
+          "media": [
+            {
+              "position": 1,
+              "format": "Digital Media",
+              "track": [
+                {
+                  "id": "0ef6e647-4aeb-438e-8c8a-50c22c511203",
+                  "number": "1",
+                  "title": "Blow Your Mind (Mwah)",
+                  "length": 179000
+                }
+              ],
+              "track-count": 1,
+              "track-offset": 0
+            }
+          ]
+        },
+        {
+          "id": "abbc4905-c25f-4c67-8e2d-19329ec48b1f",
+          "title": "Dua Lipa",
+          "status": "Official",
+          "date": "2017-06-02",
+          "track-count": 12,
+          "media": [
+            {
+              "position": 1,
+              "format": "Digital Media",
+              "track": [
+                {
+                  "id": "b74b2a35-900a-446c-8a63-7a5b01c82a5e",
+                  "number": "6",
+                  "title": "Blow Your Mind (Mwah)",
+                  "length": 178000
+                }
+              ],
+              "track-count": 12,
+              "track-offset": 5
+            }
+          ]
+        }
+      ],
+      "tags": [
+        { "count": 3, "name": "electropop" },
+        { "count": 1, "name": "dance-pop" }
+      ]
+    },
+    {
+      "id": "11111111-2222-3333-4444-555555555555",
+      "score": 80,
+      "title": "New Rules",
+      "length": 209000,
+      "artist-credit": [
+        {
+          "name": "Dua Lipa",
+          "joinphrase": "",
+          "artist": {
+            "id": "6f1a58bf-9b1b-49cf-a44a-6cefad7ae04f",
+            "name": "Dua Lipa"
+          }
+        }
+      ],
+      "first-release-date": "2017-07-07",
+      "releases": [
+        {
+          "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          "title": "Dua Lipa",
+          "status": "Official",
+          "date": "2017-06-02",
+          "track-count": 12,
+          "media": [
+            {
+              "position": 1,
+              "track-count": 12,
+              "track": [
+                { "number": 10, "title": "New Rules", "length": 209000 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

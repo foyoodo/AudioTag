@@ -13,6 +13,7 @@ final class MainWindowController: NSWindowController {
   private let library: Library
   private let splitViewController: MainSplitViewController
   private let searchItem = NSSearchToolbarItem(itemIdentifier: .search)
+  private var lookupSheet: NSWindow?
 
   init(library: Library, sources: Sources) {
     self.library = library
@@ -148,6 +149,28 @@ final class MainWindowController: NSWindowController {
     Task { await save(library.modifiedTracks) }
   }
 
+  /// Searches MusicBrainz for the selected track’s tags, and applies the recording the user picks.
+  @objc func lookUpMetadata(_ sender: Any?) {
+    commitEditing()
+    guard lookupSheet == nil, let window,
+      let track = splitViewController.trackList.selectedTracks.first,
+      splitViewController.trackList.selectedTracks.count == 1, track.isEditable
+    else { return }
+    let panel = MetadataLookupViewController(track: track, library: library)
+    let sheet = NSWindow(contentViewController: panel)
+    sheet.title = "Look Up Metadata"
+    sheet.styleMask = [.titled]
+    lookupSheet = sheet
+    panel.onFinish = { [weak self, weak window, weak sheet] in
+      guard let self, let window, let sheet else { return }
+      window.endSheet(sheet)
+      self.lookupSheet = nil
+    }
+    window.beginSheet(sheet) { [weak self] _ in
+      self?.lookupSheet = nil
+    }
+  }
+
   /// Discards the edits of the tracks selected.
   @objc func revertDocumentToSaved(_ sender: Any?) {
     commitEditing()
@@ -173,6 +196,9 @@ final class MainWindowController: NSWindowController {
     case #selector(saveDocument(_:)): library.hasModifiedTracks
     case #selector(revertDocumentToSaved(_:)):
       splitViewController.trackList.selectedTracks.contains { $0.isModified }
+    case #selector(lookUpMetadata(_:)):
+      splitViewController.trackList.selectedTracks.count == 1
+        && splitViewController.trackList.selectedTracks[0].isEditable
     case #selector(reloadFolder(_:)): splitViewController.trackList.source != nil
     default: true
     }
@@ -202,13 +228,14 @@ extension MainWindowController: NSMenuItemValidation, NSToolbarItemValidation {
 extension NSToolbarItem.Identifier {
   fileprivate static let save = Self("Save")
   fileprivate static let revert = Self("Revert")
+  fileprivate static let lookup = Self("Lookup")
   fileprivate static let search = Self("Search")
 }
 
 extension MainWindowController: NSToolbarDelegate {
   func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
     [
-      .toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, .revert, .save, .search,
+      .toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, .revert, .save, .lookup, .search,
       .inspectorTrackingSeparator,
       .flexibleSpace, .toggleInspector,
     ]
@@ -242,6 +269,16 @@ extension MainWindowController: NSToolbarDelegate {
       item.isBordered = true
       item.target = self
       item.action = #selector(revertDocumentToSaved(_:))
+      return item
+    case .lookup:
+      let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+      item.label = "Look Up"
+      item.toolTip = "Look up metadata for the selected file"
+      item.image = NSImage(
+        systemSymbolName: "globe", accessibilityDescription: "Look Up Metadata")
+      item.isBordered = true
+      item.target = self
+      item.action = #selector(lookUpMetadata(_:))
       return item
     case .search:
       return searchItem

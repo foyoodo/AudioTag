@@ -55,6 +55,7 @@ enum MainMenu {
           item("Close", #selector(NSWindow.performClose(_:)), "w"),
           item("Save", #selector(MainWindowController.saveDocument(_:)), "s"),
           item("Revert Changes", #selector(MainWindowController.revertDocumentToSaved(_:))),
+          item("Look Up Metadata…", #selector(MainWindowController.lookUpMetadata(_:)), "l"),
           .separator(),
           item("Rename", #selector(SidebarViewController.renameItem(_:))),
           // Command-Delete.

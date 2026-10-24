@@ -108,6 +108,19 @@ jobs:
       - name: Generate the Xcode workspace
         run: tuist generate --no-open --cache-profile none
 
+      # Fixture-based unit tests only; they must not open the network.
+      - name: Test
+        if: matrix.variant == 'arm64'
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -workspace AudioTag.xcworkspace \
+            -scheme AudioTag \
+            -destination 'platform=macOS,arch=arm64' \
+            -only-testing:AudioTagTests \
+            CODE_SIGN_IDENTITY=- \
+            | xcbeautify --quieter
+
       - name: Build
         run: |
           set -euo pipefail

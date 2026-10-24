@@ -377,6 +377,13 @@ final class TrackListViewController: NSViewController {
     library.revert(clickedTracks)
   }
 
+  @objc private func lookUpMetadata(_ sender: Any?) {
+    let tracks = clickedTracks
+    guard tracks.count == 1, let index = rows.firstIndex(of: tracks[0]) else { return }
+    tableView.selectRowIndexes([index], byExtendingSelection: false)
+    (view.window?.windowController as? MainWindowController)?.lookUpMetadata(sender)
+  }
+
   /// Moves the files of the tracks selected, or clicked, to the Trash.
   @objc func moveToTrash(_ sender: Any?) {
     let urls = clickedTracks.map(\.url)
@@ -653,6 +660,11 @@ extension TrackListViewController: NSMenuDelegate {
       withTitle: "Revert Changes", action: edited ? #selector(revertClicked(_:)) : nil,
       keyEquivalent: "")
     revert.target = self
+    let lookup = menu.addItem(
+      withTitle: "Look Up Metadata…",
+      action: tracks.count == 1 && tracks[0].isEditable ? #selector(lookUpMetadata(_:)) : nil,
+      keyEquivalent: "")
+    lookup.target = self
     menu.addItem(.separator())
     menu.addItem(
       withTitle: "Show in Finder", action: #selector(showInFinder(_:)), keyEquivalent: ""
