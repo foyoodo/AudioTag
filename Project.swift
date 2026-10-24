@@ -12,6 +12,8 @@ let project = Project(
       infoPlist: .extendingDefault(with: [
         // The interface is built in code.
         "NSMainStoryboardFile": "",
+        "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+        "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
         "CFBundleDocumentTypes": [
           [
             "CFBundleTypeName": "Audio File",
@@ -35,7 +37,11 @@ let project = Project(
       dependencies: [
         .external(name: "TagLib")
       ],
-      settings: .settings(base: ["SWIFT_VERSION": "6.0"])
+      settings: .settings(base: [
+        "SWIFT_VERSION": "6.0",
+        "MARKETING_VERSION": "0.1.0",
+        "CURRENT_PROJECT_VERSION": "1",
+      ])
     ),
     .target(
       name: "AudioTagTests",
