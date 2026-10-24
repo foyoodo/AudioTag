@@ -108,6 +108,22 @@ jobs:
       - name: Generate the Xcode workspace
         run: tuist generate --no-open --cache-profile none
 
+      # Fixture-based unit tests only; they must not open the network.
+      # TEST_RUNNER_AUDIOTAG_RUNNING_TESTS tells AppDelegate not to start Sparkle, which
+      # otherwise hangs the test runner before it can connect.
+      - name: Test
+        if: matrix.variant == 'arm64'
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -workspace AudioTag.xcworkspace \
+            -scheme AudioTag \
+            -destination 'platform=macOS,arch=arm64' \
+            -only-testing:AudioTagTests \
+            CODE_SIGN_IDENTITY=- \
+            TEST_RUNNER_AUDIOTAG_RUNNING_TESTS=1 \
+            | xcbeautify --quieter
+
       - name: Build
         run: |
           set -euo pipefail

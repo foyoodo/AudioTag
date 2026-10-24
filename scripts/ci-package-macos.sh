@@ -304,25 +304,33 @@ for marker in (b"<?xml", b"<plist", b"bplist"):
     if idx != -1:
         raw = raw[idx:]
         break
+def is_true(text, key):
+    escaped = key.replace(".", r"\.")
+    return key in text and re.search(
+        escaped + r"(?:</key>)?\s*(?:<true\s*/>|true|\[Bool\] true)", text, re.I | re.S
+    )
+
 try:
     data = plistlib.loads(raw)
 except Exception:
     text = raw.decode("utf-8", "replace")
     if (
-        "com.apple.security.app-sandbox" in text
-        and re.search(
-            r"app-sandbox(?:</key>)?\s*(?:<true\s*/>|true|\[Bool\] true)", text, re.I | re.S
-        )
+        is_true(text, "com.apple.security.app-sandbox")
+        and is_true(text, "com.apple.security.network.client")
         and "com.foyoodo.AudioTag-spks" in text
         and "com.foyoodo.AudioTag-spki" in text
     ):
         sys.exit(0)
     raise SystemExit("could not parse entitlements dump") from None
 
-value = data.get("com.apple.security.app-sandbox")
-print("com.apple.security.app-sandbox =", value)
-if value is not True:
+sandbox = data.get("com.apple.security.app-sandbox")
+network = data.get("com.apple.security.network.client")
+print("com.apple.security.app-sandbox =", sandbox)
+print("com.apple.security.network.client =", network)
+if sandbox is not True:
     raise SystemExit("com.apple.security.app-sandbox is not true")
+if network is not True:
+    raise SystemExit("com.apple.security.network.client is not true")
 
 lookup = data.get("com.apple.security.temporary-exception.mach-lookup.global-name")
 print("mach-lookup.global-name =", lookup)
@@ -336,6 +344,7 @@ if not needed.issubset(set(lookup)):
     raise SystemExit(f"Sparkle mach-lookup ports missing; have {lookup!r}")
 PY
 echo "Sandbox entitlement com.apple.security.app-sandbox is present and true."
+echo "Network entitlement com.apple.security.network.client is present and true."
 echo "Sparkle mach-lookup exceptions -spks and -spki are present."
 
 echo "=== Sparkle Info.plist keys ==="
@@ -407,7 +416,7 @@ if [[ "$found_installer" -ne 1 ]]; then
   exit 1
 fi
 if [[ "$found_downloader" -ne 1 ]]; then
-  echo "::error::Sparkle Downloader.xpc is missing (required without network.client)"
+  echo "::error::Sparkle Downloader.xpc is missing (required for sandboxed Sparkle updates)"
   exit 1
 fi
 
