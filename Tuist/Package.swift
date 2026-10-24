@@ -12,6 +12,7 @@ import PackageDescription
 let package = Package(
   name: "AudioTag",
   dependencies: [
-    .package(path: "../Frameworks/TagLib-Swift")
+    .package(path: "../Frameworks/TagLib-Swift"),
+    .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.1"),
   ]
 )

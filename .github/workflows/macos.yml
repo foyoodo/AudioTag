@@ -4,6 +4,8 @@
 # from the app's Info.plist (Project.swift MARKETING_VERSION). On v* tags that
 # is AudioTag-<version>-arm64.zip; on other builds a short SHA is appended.
 # The Homebrew cask in foyoodo/homebrew-tap should match these names.
+# On v* tags the release job also signs Sparkle's appcast.xml from the
+# universal zip when SPARKLE_ED_PRIVATE_KEY is set.
 #
 # Assumptions:
 #   - macos-26 (Apple Silicon) with Xcode 26.x. The project requires Xcode 26
@@ -155,10 +157,14 @@ jobs:
     name: GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: build
-    runs-on: ubuntu-latest
+    # generate_appcast is a macOS binary from the Sparkle distribution.
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
       - name: Download packaged builds
         uses: actions/download-artifact@v4
         with:
@@ -166,13 +172,14 @@ jobs:
           merge-multiple: true
           path: dist
 
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: bash scripts/ci-generate-appcast.sh
+
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/AudioTag-*-arm64.zip
-            dist/AudioTag-*-arm64.dmg
-            dist/AudioTag-*-universal.zip
-            dist/AudioTag-*-universal.dmg
+          files: dist/release-assets/*
           generate_release_notes: true
           fail_on_unmatched_files: true

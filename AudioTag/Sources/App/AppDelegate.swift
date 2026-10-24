@@ -6,12 +6,15 @@
 //
 
 import AppKit
+import Sparkle
 
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let library = Library()
   private let sources = Sources()
+  private let updaterController = SPUStandardUpdaterController(
+    startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
   private var windowController: MainWindowController?
   /// Files asked to be opened before the window was.
   private var pendingURLs: [URL] = []
@@ -26,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    NSApp.mainMenu = MainMenu.make()
+    NSApp.mainMenu = MainMenu.make(checkForUpdatesTarget: updaterController)
     sources.restore()
     let windowController = MainWindowController(library: library, sources: sources)
     self.windowController = windowController
