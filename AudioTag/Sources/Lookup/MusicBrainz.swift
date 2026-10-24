@@ -87,10 +87,10 @@ enum MusicBrainz {
     func candidate(matching query: MetadataQuery) -> MetadataCandidate? {
       let artist = Self.creditedName(artistCredit)
       let release = Self.preferredRelease(releases, album: query.album)
-      let media = release?.media?.first
-    let track = media?.track?.first
-    let trackNumber =
-      track?.number?.intValue ?? Int(track?.number?.value.filter(\.isNumber) ?? "")
+      let media = Self.medium(containing: release)
+      let track = media?.track?.first
+      let trackNumber =
+        track?.number?.intValue ?? Int(track?.number?.value.filter(\.isNumber) ?? "")
       let albumArtist = Self.creditedName(release?.artistCredit)
       let date = release?.date ?? firstReleaseDate ?? ""
       let genre = tags?.max { $0.count ?? 0 < $1.count ?? 0 }?.name ?? ""
@@ -103,7 +103,7 @@ enum MusicBrainz {
         albumArtist: albumArtist.isEmpty || albumArtist == artist ? artist : albumArtist,
         date: date,
         trackNumber: trackNumber,
-        trackCount: release?.trackCount ?? media?.trackCount,
+        trackCount: Self.trackCount(release: release, media: media),
         discNumber: media?.position,
         genre: genre,
         duration: length.map { TimeInterval($0) / 1000 },
@@ -120,6 +120,21 @@ enum MusicBrainz {
     private static func creditedName(_ credits: [NameCredit]?) -> String {
       (credits ?? []).reduce("") { $0 + $1.creditedName + ($1.joinphrase ?? "") }
         .trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The medium that lists this recording, or the first. Track totals are per disc.
+    private static func medium(containing release: Release?) -> Medium? {
+      guard let media = release?.media, !media.isEmpty else { return nil }
+      return media.first { $0.track?.isEmpty == false } ?? media.first
+    }
+
+    /// The medium’s track count, falling back to the release total only when there is a
+    /// single medium. A release `track-count` is the total across every disc.
+    private static func trackCount(release: Release?, media: Medium?) -> Int? {
+      if let count = media?.trackCount { return count }
+      let mediumCount = release?.media?.count ?? 0
+      if mediumCount <= 1 { return release?.trackCount }
+      return nil
     }
 
     /// The release whose title matches the album searched, an Official one, or the first.

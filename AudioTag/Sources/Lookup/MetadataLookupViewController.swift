@@ -295,7 +295,7 @@ final class MetadataLookupViewController: NSViewController {
           group.addTask {
             (
               candidate.id,
-              try? await service.image(for: candidate, size: .thumbnail)
+              try? await service.image(for: candidate, size: .thumbnail)?.data
             )
           }
         }
@@ -328,6 +328,7 @@ final class MetadataLookupViewController: NSViewController {
     guard let candidate else {
       previewPlaceholder.isHidden = false
       artworkView.image = nil
+      artworkCheckbox.title = LookupImage.Origin.candidate.artworkLabel
       artworkCheckbox.state = .off
       artworkCheckbox.isEnabled = false
       applyButton.isEnabled = false
@@ -337,14 +338,15 @@ final class MetadataLookupViewController: NSViewController {
     }
     previewPlaceholder.isHidden = true
     artworkView.image = thumbnails[candidate.id]
-    let hasCover = thumbnails[candidate.id] != nil || candidate.thumbnailURL != nil
-    artworkCheckbox.isEnabled = hasCover
-    artworkCheckbox.state = hasCover ? .on : .off
+    artworkCheckbox.title = LookupImage.Origin.candidate.artworkLabel
+    artworkCheckbox.isEnabled = false
+    artworkCheckbox.state = .off
     let changes = MetadataLookup.changes(for: track, candidate: candidate)
     for change in changes {
       let checkbox = NSButton(
         checkboxWithTitle: change.field.label, target: self, action: #selector(previewToggled(_:)))
-      checkbox.state = change.wouldChange ? .on : .off
+      checkbox.state =
+        MetadataLookup.isCheckedByDefault(change, source: candidate.source) ? .on : .off
       checkbox.identifier = .init(change.field.rawValue)
       fieldChecks[change.field] = checkbox
       let current = NSTextField(labelWithString: change.current.isEmpty ? "None" : change.current)
@@ -383,16 +385,23 @@ final class MetadataLookupViewController: NSViewController {
     selectedArtwork = nil
     let service = service
     Task { @MainActor [weak self] in
-      let data = try? await service.image(for: candidate, size: .full)
+      let fetched = try? await service.image(for: candidate, size: .full)
       guard !Task.isCancelled, let self, selectedCandidate?.id == candidate.id else { return }
-      selectedArtwork = data
-      if let data, let image = NSImage(data: data) {
+      selectedArtwork = fetched?.data
+      if let data = fetched?.data, let image = NSImage(data: data) {
         artworkView.image = image
         thumbnails[candidate.id] = image
-        artworkCheckbox.isEnabled = true
-        if artworkCheckbox.state == .off { artworkCheckbox.state = .on }
-        updateApplyEnabled()
       }
+      if let origin = fetched?.origin {
+        artworkCheckbox.title = origin.artworkLabel
+        artworkCheckbox.isEnabled = true
+        artworkCheckbox.state = origin.isArtworkPreChecked ? .on : .off
+      } else {
+        artworkCheckbox.title = LookupImage.Origin.candidate.artworkLabel
+        artworkCheckbox.isEnabled = false
+        artworkCheckbox.state = .off
+      }
+      updateApplyEnabled()
     }
   }
 
@@ -422,7 +431,7 @@ final class MetadataLookupViewController: NSViewController {
         if let artwork {
           data = artwork
         } else {
-          data = try? await self.service.image(for: candidate, size: .full)
+          data = try? await self.service.image(for: candidate, size: .full)?.data
         }
         picture = data.flatMap { Picture(imageData: $0, type: nil) }
       }

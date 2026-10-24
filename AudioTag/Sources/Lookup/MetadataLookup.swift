@@ -47,6 +47,29 @@ enum CoverArtSize: Sendable {
   case full
 }
 
+/// Cover art fetched for a candidate, and where it came from.
+struct LookupImage: Equatable, Sendable {
+  var data: Data
+  var origin: Origin
+
+  enum Origin: Equatable, Sendable {
+    /// The candidate’s own cover, from the Cover Art Archive or its iTunes artwork URL.
+    case candidate
+    /// iTunes search because the candidate had no cover; it may be a different album.
+    case iTunesFallback
+
+    var artworkLabel: String {
+      switch self {
+      case .candidate: "Artwork"
+      case .iTunesFallback: "Artwork (from iTunes, may not match)"
+      }
+    }
+
+    /// Fallback art is offered but not applied unless the user checks it.
+    var isArtworkPreChecked: Bool { self == .candidate }
+  }
+}
+
 /// Artist, album and title as searched, which the user can edit before searching.
 struct MetadataQuery: Equatable, Sendable {
   var title: String
@@ -231,6 +254,18 @@ enum MetadataLookup {
       return MetadataFieldChange(
         field: field, current: current[field] ?? "", proposed: proposed)
     }
+  }
+
+  /// Whether the preview should check this field. MusicBrainz genres are folksonomy tags,
+  /// so Genre is only pre-checked when the track has none.
+  static func isCheckedByDefault(
+    _ change: MetadataFieldChange, source: MetadataCandidate.Source
+  ) -> Bool {
+    if change.field == .genre, source == .musicBrainz {
+      return change.current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && change.wouldChange
+    }
+    return change.wouldChange
   }
 
   @MainActor

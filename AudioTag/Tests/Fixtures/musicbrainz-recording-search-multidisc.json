@@ -1,0 +1,54 @@
+{
+  "created": "2018-11-22T12:00:00.000Z",
+  "count": 1,
+  "offset": 0,
+  "recordings": [
+    {
+      "id": "6f24f32d-64b4-4c4d-8c8a-0c0e8c0e8c0e",
+      "score": 100,
+      "title": "Helter Skelter",
+      "length": 269000,
+      "artist-credit": [
+        {
+          "artist": {
+            "id": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+            "name": "The Beatles",
+            "sort-name": "Beatles, The"
+          }
+        }
+      ],
+      "first-release-date": "1968-11-22",
+      "releases": [
+        {
+          "id": "1fc33ed0-d5e6-4c4e-8a5a-0b0b0b0b0b0b",
+          "title": "The Beatles",
+          "status": "Official",
+          "date": "1968-11-22",
+          "track-count": 30,
+          "media": [
+            {
+              "position": 1,
+              "format": "12\" Vinyl",
+              "track-count": 17,
+              "track-offset": 0
+            },
+            {
+              "position": 2,
+              "format": "12\" Vinyl",
+              "track-count": 13,
+              "track-offset": 0,
+              "track": [
+                {
+                  "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                  "number": "6",
+                  "title": "Helter Skelter",
+                  "length": 269000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

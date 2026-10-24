@@ -151,6 +151,49 @@ struct MusicBrainzParsingTests {
       try MusicBrainz.recordings(from: Data("not json".utf8))
     }
   }
+
+  @Test("A multi-disc release uses the medium’s track total, not the release’s")
+  func multiDiscTrackCount() throws {
+    let data = try LookupFixtures.data("musicbrainz-recording-search-multidisc.json")
+    let candidates = try MusicBrainz.recordings(from: data)
+    let first = try #require(candidates.first)
+    #expect(first.title == "Helter Skelter")
+    #expect(first.discNumber == 2)
+    #expect(first.trackNumber == 6)
+    #expect(first.trackCount == 13)
+  }
+
+  @Test("A single medium without its own track count uses the release’s")
+  func singleMediumReleaseTrackCount() throws {
+    let json = Data(
+      """
+      {"recordings":[{"id":"r","title":"Song","releases":[{
+        "id":"rel","title":"Album","track-count":10,
+        "media":[{"position":1,"track":[{"number":"4"}]}]
+      }]}]}
+      """.utf8)
+    let first = try #require(try MusicBrainz.recordings(from: json).first)
+    #expect(first.trackCount == 10)
+    #expect(first.trackNumber == 4)
+  }
+
+  @Test("A multi-disc release without per-medium totals does not use the release total")
+  func multiDiscOmitsReleaseTotal() throws {
+    let json = Data(
+      """
+      {"recordings":[{"id":"r","title":"Song","releases":[{
+        "id":"rel","title":"Album","track-count":24,
+        "media":[
+          {"position":1},
+          {"position":2,"track":[{"number":"3"}]}
+        ]
+      }]}]}
+      """.utf8)
+    let first = try #require(try MusicBrainz.recordings(from: json).first)
+    #expect(first.discNumber == 2)
+    #expect(first.trackNumber == 3)
+    #expect(first.trackCount == nil)
+  }
 }
 
 @Suite("iTunes JSON")
@@ -222,6 +265,35 @@ struct MetadataFieldChangeTests {
     #expect(byField[.trackNumber]?.proposed == "10")
     #expect(byField[.genre]?.proposed == "Pop")
   }
+
+  @Test("MusicBrainz genre is only pre-checked when the track has none")
+  func musicBrainzGenrePreCheck() {
+    let candidate = MetadataCandidate(
+      id: "mb", title: "New Rules", artist: "Dua Lipa", album: "Dua Lipa",
+      albumArtist: "Dua Lipa", date: "2017-06-02", trackNumber: 10, trackCount: 12,
+      genre: "electropop", source: .musicBrainz)
+    let withGenre = MetadataLookup.changes(
+      current: [.genre: "Pop"], candidate: candidate
+    ).first { $0.field == .genre }!
+    #expect(withGenre.wouldChange == true)
+    #expect(MetadataLookup.isCheckedByDefault(withGenre, source: .musicBrainz) == false)
+    let empty = MetadataLookup.changes(
+      current: [.genre: ""], candidate: candidate
+    ).first { $0.field == .genre }!
+    #expect(MetadataLookup.isCheckedByDefault(empty, source: .musicBrainz) == true)
+  }
+
+  @Test("iTunes genre is pre-checked when it differs from the track’s")
+  func iTunesGenrePreCheck() {
+    let candidate = MetadataCandidate(
+      id: "itunes", title: "Upside Down", artist: "Jack Johnson", album: "Curious George",
+      albumArtist: "Jack Johnson", date: "2006-02-07", trackNumber: 1, trackCount: 14,
+      genre: "Rock", source: .iTunes)
+    let change = MetadataLookup.changes(
+      current: [.genre: "Pop"], candidate: candidate
+    ).first { $0.field == .genre }!
+    #expect(MetadataLookup.isCheckedByDefault(change, source: .iTunes) == true)
+  }
 }
 
 @Suite("Lookup client")
@@ -273,6 +345,55 @@ struct LookupClientTests {
       try await service.search(MetadataQuery(title: "  ", artist: "", album: ""))
     }
     #expect(transport.requests.get().isEmpty)
+  }
+
+  @Test("Cover Art Archive images are the candidate’s own cover")
+  func candidateArtwork() async throws {
+    let jpeg = Data([0xFF, 0xD8, 0xFF, 0xD9])
+    let transport = MapTransport(responses: [
+      "coverartarchive.org": (200, jpeg)
+    ])
+    let client = LookupClient(
+      transport: transport, userAgent: AudioTagIdentity.userAgent(version: "0.2.0"),
+      pacer: RequestPacer(interval: .zero), pacedHosts: [])
+    let service = MetadataLookupService(client: client)
+    let candidate = MetadataCandidate(
+      id: "mb", title: "Song", artist: "Artist", album: "Album", albumArtist: "Artist",
+      date: "2017", genre: "", source: .musicBrainz,
+      releaseMBID: "abbc4905-c25f-4c67-8e2d-19329ec48b1f")
+    let image = try #require(try await service.image(for: candidate, size: .full))
+    #expect(image.origin == .candidate)
+    #expect(image.origin.isArtworkPreChecked)
+    #expect(image.origin.artworkLabel == "Artwork")
+    #expect(image.data == jpeg)
+  }
+
+  @Test("iTunes artwork used when Cover Art Archive has none is a fallback, not pre-checked")
+  func iTunesArtworkFallback() async throws {
+    let jpeg = Data([0xFF, 0xD8, 0xFF, 0xD9])
+    let itunes = try LookupFixtures.data("itunes-search.json")
+    let transport = MapTransport(responses: [
+      "coverartarchive.org": (404, Data()),
+      "itunes.apple.com/search": (200, itunes),
+      "is1-ssl.mzstatic.com": (200, jpeg),
+    ])
+    let client = LookupClient(
+      transport: transport, userAgent: AudioTagIdentity.userAgent(version: "0.2.0"),
+      pacer: RequestPacer(interval: .zero), pacedHosts: [])
+    let service = MetadataLookupService(client: client)
+    let candidate = MetadataCandidate(
+      id: "mb", title: "Blow Your Mind (Mwah)", artist: "Dua Lipa", album: "Dua Lipa",
+      albumArtist: "Dua Lipa", date: "2017", genre: "electropop", source: .musicBrainz,
+      releaseMBID: "abbc4905-c25f-4c67-8e2d-19329ec48b1f",
+      thumbnailURL: CoverArtArchive.imageURL(
+        releaseMBID: "abbc4905-c25f-4c67-8e2d-19329ec48b1f", size: .thumbnail),
+      imageURL: CoverArtArchive.imageURL(
+        releaseMBID: "abbc4905-c25f-4c67-8e2d-19329ec48b1f", size: .full))
+    let image = try #require(try await service.image(for: candidate, size: .full))
+    #expect(image.origin == .iTunesFallback)
+    #expect(!image.origin.isArtworkPreChecked)
+    #expect(image.origin.artworkLabel == "Artwork (from iTunes, may not match)")
+    #expect(image.data == jpeg)
   }
 
   @Test("The User-Agent is sent on each request")
