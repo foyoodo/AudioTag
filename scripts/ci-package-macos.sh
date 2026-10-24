@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Ad-hoc sign AudioTag.app, verify architectures with lipo, then zip + dmg.
+# Ad-hoc sign AudioTag.app with sandbox entitlements, verify architectures
+# with lipo, then zip + dmg using versioned file names.
 #
 # Expected environment:
 #   APP_PATH     path to AudioTag.app
 #   VARIANT      arm64 | universal
 #   ARCHS_VALUE  space-separated architectures, e.g. "arm64" or "arm64 x86_64"
 #   DERIVED_DATA optional; scanned for TagLib/CTagLib static libraries
+#   GITHUB_REF / GITHUB_REF_NAME / GITHUB_SHA  from Actions
+#   GITHUB_OUTPUT optional; writes asset_stem for upload-artifact
 set -euo pipefail
 
 APP_PATH="${APP_PATH:?APP_PATH is required}"
@@ -15,6 +18,7 @@ DERIVED_DATA="${DERIVED_DATA:-}"
 
 read -r -a EXPECTED_ARCHS <<<"$ARCHS_VALUE"
 APP_BIN="$APP_PATH/Contents/MacOS/AudioTag"
+INFO_PLIST="$APP_PATH/Contents/Info.plist"
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "::error::Built app not found at $APP_PATH"
@@ -71,11 +75,65 @@ verify_binary() {
   fi
 }
 
+find_entitlements() {
+  local settings entitlements srcroot
+  settings="$(
+    xcodebuild -showBuildSettings \
+      -workspace AudioTag.xcworkspace \
+      -scheme AudioTag \
+      -configuration Release \
+      -destination generic/platform=macOS \
+      ${DERIVED_DATA:+-derivedDataPath "$DERIVED_DATA"} \
+      2>/dev/null || true
+  )"
+  entitlements="$(sed -n 's/^[[:space:]]*CODE_SIGN_ENTITLEMENTS = //p' <<<"$settings" | tail -1)"
+  srcroot="$(sed -n 's/^[[:space:]]*SRCROOT = //p' <<<"$settings" | tail -1)"
+  if [[ -n "$entitlements" ]]; then
+    if [[ "$entitlements" != /* && -n "$srcroot" ]]; then
+      entitlements="$srcroot/$entitlements"
+    fi
+    if [[ -f "$entitlements" ]]; then
+      printf '%s\n' "$entitlements"
+      return 0
+    fi
+  fi
+  # Tuist writes dictionary entitlements under Derived/.
+  find . Derived "${DERIVED_DATA:-/nonexistent}" \
+    -name '*.entitlements' \
+    -type f \
+    2>/dev/null | head -1
+}
+
 echo "=== App executable ==="
 file "$APP_BIN"
 verify_binary "$APP_BIN"
-/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist" \
-  || true
+
+APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")"
+echo "CFBundleShortVersionString=$APP_VERSION"
+echo "CFBundleVersion=$APP_BUILD"
+
+if [[ -z "$APP_VERSION" ]]; then
+  echo "::error::CFBundleShortVersionString missing from $INFO_PLIST"
+  exit 1
+fi
+
+if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+  TAG_VERSION="${GITHUB_REF_NAME#v}"
+  if [[ "$TAG_VERSION" != "$APP_VERSION" ]]; then
+    echo "::error::Git tag v${TAG_VERSION} does not match project version ${APP_VERSION} (CFBundleShortVersionString). Bump MARKETING_VERSION in Project.swift or retag."
+    exit 1
+  fi
+  ASSET_VERSION="$APP_VERSION"
+else
+  SHORT_SHA="$(git rev-parse --short=7 HEAD 2>/dev/null || echo "${GITHUB_SHA:0:7}")"
+  ASSET_VERSION="${APP_VERSION}-${SHORT_SHA}"
+fi
+ASSET_STEM="AudioTag-${ASSET_VERSION}-${VARIANT}"
+echo "ASSET_STEM=$ASSET_STEM"
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  echo "asset_stem=$ASSET_STEM" >> "$GITHUB_OUTPUT"
+fi
 
 echo "=== Mach-O files inside the .app ==="
 found_bundle_macho=0
@@ -109,11 +167,18 @@ if [[ -n "$DERIVED_DATA" && -d "$DERIVED_DATA" ]]; then
   fi
 fi
 
-echo "=== Ad-hoc sign (nested code inside-out, then the bundle) ==="
-# Collect nested Mach-O (helpers, dylibs, framework binaries) deepest first,
-# then sign the .app. --deep is avoided so entitlements stay on the bundle only.
+ENTITLEMENTS="$(find_entitlements || true)"
+if [[ -z "$ENTITLEMENTS" || ! -f "$ENTITLEMENTS" ]]; then
+  echo "::error::Could not find the entitlements file Tuist generated (CODE_SIGN_ENTITLEMENTS)."
+  exit 1
+fi
+echo "Entitlements file: $ENTITLEMENTS"
+plutil -p "$ENTITLEMENTS" || cat "$ENTITLEMENTS"
+
+echo "=== Ad-hoc sign (nested code without entitlements, bundle with entitlements) ==="
 while IFS= read -r nested; do
   [[ -z "$nested" ]] && continue
+  [[ "$nested" == "$APP_BIN" ]] && continue
   echo "codesign --force --sign - $nested"
   codesign --force --sign - --timestamp=none "$nested"
 done < <(
@@ -128,22 +193,56 @@ done < <(
     | awk '{ $1=""; sub(/^ /,""); print }'
 )
 
-echo "codesign --force --sign - $APP_PATH"
-codesign --force --sign - --timestamp=none "$APP_PATH"
+echo "codesign --force --sign - --entitlements $ENTITLEMENTS $APP_PATH"
+codesign --force --sign - --timestamp=none --entitlements "$ENTITLEMENTS" "$APP_PATH"
 
 echo "=== codesign --verify --deep --strict ==="
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 codesign -dv --verbose=4 "$APP_PATH" 2>&1 || true
 
+echo "=== codesign -d --entitlements - ==="
+ENTITLEMENTS_DUMP="$(mktemp)"
+# XML on stdout (`:-`); fall back to writing a plist file.
+if ! codesign -d --entitlements :- "$APP_PATH" >"$ENTITLEMENTS_DUMP" 2>/dev/null; then
+  codesign -d --entitlements - "$APP_PATH" >"$ENTITLEMENTS_DUMP" 2>/dev/null \
+    || codesign -d --entitlements "$ENTITLEMENTS_DUMP" "$APP_PATH"
+fi
+cat "$ENTITLEMENTS_DUMP"
+python3 - "$ENTITLEMENTS_DUMP" <<'PY'
+import pathlib, plistlib, re, sys
+
+raw = pathlib.Path(sys.argv[1]).read_bytes()
+for marker in (b"<?xml", b"<plist", b"bplist"):
+    idx = raw.find(marker)
+    if idx != -1:
+        raw = raw[idx:]
+        break
+try:
+    data = plistlib.loads(raw)
+except Exception:
+    text = raw.decode("utf-8", "replace")
+    if "com.apple.security.app-sandbox" in text and re.search(
+        r"app-sandbox(?:</key>)?\s*(?:<true\s*/>|true|\[Bool\] true)", text, re.I | re.S
+    ):
+        sys.exit(0)
+    raise SystemExit("could not parse entitlements dump") from None
+
+value = data.get("com.apple.security.app-sandbox")
+print("com.apple.security.app-sandbox =", value)
+if value is not True:
+    raise SystemExit("com.apple.security.app-sandbox is not true")
+PY
+echo "Sandbox entitlement com.apple.security.app-sandbox is present and true."
+
 mkdir -p dist
 STAGING="$(mktemp -d)"
-trap 'rm -rf "$STAGING"' EXIT
+trap 'rm -rf "$STAGING" "$ENTITLEMENTS_DUMP"' EXIT
 
 cp -R "$APP_PATH" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
-ZIP_PATH="dist/AudioTag-${VARIANT}.zip"
-DMG_PATH="dist/AudioTag-${VARIANT}.dmg"
+ZIP_PATH="dist/${ASSET_STEM}.zip"
+DMG_PATH="dist/${ASSET_STEM}.dmg"
 
 echo "=== Packaging $ZIP_PATH ==="
 ditto -c -k --keepParent --sequesterRsrc "$APP_PATH" "$ZIP_PATH"
@@ -158,4 +257,4 @@ hdiutil create \
   "$DMG_PATH"
 
 ls -lh dist/
-echo "Packaged $VARIANT (${ARCHS_VALUE}) successfully."
+echo "Packaged $ASSET_STEM (${ARCHS_VALUE}) successfully."

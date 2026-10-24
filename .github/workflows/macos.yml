@@ -1,17 +1,18 @@
 # Build and package AudioTag for macOS.
 #
-# Two ad-hoc-signed (not notarized) variants. These file names are stable and
-# consumed by the Homebrew cask in foyoodo/homebrew-tap:
-#   - arm64-only  → AudioTag-arm64.zip / .dmg
-#   - universal   → AudioTag-universal.zip / .dmg  (arm64 + x86_64)
+# Two ad-hoc-signed (not notarized) variants. Asset names include the version
+# from the app's Info.plist (Project.swift MARKETING_VERSION). On v* tags that
+# is AudioTag-<version>-arm64.zip; on other builds a short SHA is appended.
+# The Homebrew cask in foyoodo/homebrew-tap should match these names.
 #
 # Assumptions:
 #   - macos-26 (Apple Silicon) with Xcode 26.x. The project requires Xcode 26
 #     (Swift 6 + Icon Composer). Tuist.swift allows 26 and 27.
 #   - TagLib-Swift and upstream TagLib are public git submodules (HTTPS).
-#   - No Apple signing secrets. The app is ad-hoc signed after the build so a
-#     quarantined download is "unidentified developer", not "damaged".
-#     Developer ID / notarization can be added later via secrets.
+#   - No Apple signing secrets. The app is ad-hoc signed after the build, with
+#     the sandbox entitlements Tuist generates, so a quarantined download is
+#     "unidentified developer", not "damaged". Developer ID / notarization can
+#     be added later via secrets.
 
 name: macOS build
 
@@ -105,12 +106,6 @@ jobs:
       - name: Generate the Xcode workspace
         run: tuist generate --no-open --cache-profile none
 
-      - name: Version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          echo "MARKETING_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          echo "CFBundleShortVersionString will be ${GITHUB_REF_NAME#v}"
-
       - name: Build
         run: |
           set -euo pipefail
@@ -124,30 +119,24 @@ jobs:
             EXCLUDED=""
           fi
 
-          # macOS ships Bash 3.2: empty arrays are unbound under `set -u`.
-          BUILD_CMD=(
-            xcodebuild build
-            -workspace AudioTag.xcworkspace
-            -scheme AudioTag
-            -configuration Release
-            -destination generic/platform=macOS
-            -derivedDataPath "$DERIVED_DATA"
-            ARCHS="$ARCHS_VALUE"
-            EXCLUDED_ARCHS="$EXCLUDED"
-            ONLY_ACTIVE_ARCH=NO
-            BUILD_ACTIVE_RESOURCES_ONLY=NO
-            COMPILER_INDEX_STORE_ENABLE=NO
-            CODE_SIGNING_ALLOWED=NO
-            CODE_SIGNING_REQUIRED=NO
-            CODE_SIGN_IDENTITY=-
-          )
-          if [[ -n "${MARKETING_VERSION:-}" ]]; then
-            BUILD_CMD+=(MARKETING_VERSION="$MARKETING_VERSION")
-          fi
-
-          "${BUILD_CMD[@]}" | xcbeautify --quieter
+          xcodebuild build \
+            -workspace AudioTag.xcworkspace \
+            -scheme AudioTag \
+            -configuration Release \
+            -destination generic/platform=macOS \
+            -derivedDataPath "$DERIVED_DATA" \
+            ARCHS="$ARCHS_VALUE" \
+            EXCLUDED_ARCHS="$EXCLUDED" \
+            ONLY_ACTIVE_ARCH=NO \
+            BUILD_ACTIVE_RESOURCES_ONLY=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=- \
+            | xcbeautify --quieter
 
       - name: Package and verify architectures
+        id: package
         env:
           APP_PATH: ${{ env.DERIVED_DATA }}/Build/Products/Release/AudioTag.app
         run: bash scripts/ci-package-macos.sh
@@ -155,10 +144,10 @@ jobs:
       - name: Upload ${{ matrix.variant }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: AudioTag-${{ matrix.variant }}
+          name: ${{ steps.package.outputs.asset_stem }}
           path: |
-            dist/AudioTag-${{ matrix.variant }}.zip
-            dist/AudioTag-${{ matrix.variant }}.dmg
+            dist/${{ steps.package.outputs.asset_stem }}.zip
+            dist/${{ steps.package.outputs.asset_stem }}.dmg
           if-no-files-found: error
           compression-level: 0
 
@@ -181,9 +170,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/AudioTag-arm64.zip
-            dist/AudioTag-arm64.dmg
-            dist/AudioTag-universal.zip
-            dist/AudioTag-universal.dmg
+            dist/AudioTag-*-arm64.zip
+            dist/AudioTag-*-arm64.dmg
+            dist/AudioTag-*-universal.zip
+            dist/AudioTag-*-universal.dmg
           generate_release_notes: true
           fail_on_unmatched_files: true

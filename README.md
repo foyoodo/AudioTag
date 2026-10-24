@@ -104,14 +104,18 @@ the tests.
 
 ## CI builds
 
-GitHub Actions builds two ad-hoc-signed packages on every push to `main`, pull
-request, manual run, and version tag (`v*`):
+The marketing version is `MARKETING_VERSION` in `Project.swift` (currently
+`0.1.0`). GitHub Actions builds two ad-hoc-signed packages on every push to
+`main`, pull request, manual run, and version tag (`v*`):
 
-- **AudioTag-arm64** — Apple Silicon
-- **AudioTag-universal** — Apple Silicon and Intel (`arm64` + `x86_64`)
+- `AudioTag-<version>-arm64` — Apple Silicon
+- `AudioTag-<version>-universal` — Apple Silicon and Intel (`arm64` + `x86_64`)
 
-Download the zip or disk image from the workflow run's artifacts. On a `v*` tag
-the same files are attached to the [GitHub Release](https://github.com/foyoodo/AudioTag/releases).
+On a `v*` tag the files are `AudioTag-0.1.0-arm64.zip` (and `.dmg`); the tag
+must match `MARKETING_VERSION` or the workflow fails. Other builds append the
+short commit SHA, for example `AudioTag-0.1.0-abc1234-arm64.zip`. Download them
+from the workflow run's artifacts. On a `v*` tag the same files are attached to
+the [GitHub Release](https://github.com/foyoodo/AudioTag/releases).
 The builds are not notarized. After moving the app to `/Applications`, allow it
 in **System Settings › Privacy & Security › Open Anyway**, or clear the
 quarantine attribute:
