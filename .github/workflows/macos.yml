@@ -124,27 +124,28 @@ jobs:
             EXCLUDED=""
           fi
 
-          VERSION_ARGS=()
+          # macOS ships Bash 3.2: empty arrays are unbound under `set -u`.
+          BUILD_CMD=(
+            xcodebuild build
+            -workspace AudioTag.xcworkspace
+            -scheme AudioTag
+            -configuration Release
+            -destination generic/platform=macOS
+            -derivedDataPath "$DERIVED_DATA"
+            ARCHS="$ARCHS_VALUE"
+            EXCLUDED_ARCHS="$EXCLUDED"
+            ONLY_ACTIVE_ARCH=NO
+            BUILD_ACTIVE_RESOURCES_ONLY=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGN_IDENTITY=-
+          )
           if [[ -n "${MARKETING_VERSION:-}" ]]; then
-            VERSION_ARGS+=(MARKETING_VERSION="$MARKETING_VERSION")
+            BUILD_CMD+=(MARKETING_VERSION="$MARKETING_VERSION")
           fi
 
-          xcodebuild build \
-            -workspace AudioTag.xcworkspace \
-            -scheme AudioTag \
-            -configuration Release \
-            -destination 'generic/platform=macOS' \
-            -derivedDataPath "$DERIVED_DATA" \
-            ARCHS="$ARCHS_VALUE" \
-            EXCLUDED_ARCHS="$EXCLUDED" \
-            ONLY_ACTIVE_ARCH=NO \
-            BUILD_ACTIVE_RESOURCES_ONLY=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="-" \
-            "${VERSION_ARGS[@]}" \
-            | xcbeautify --quieter
+          "${BUILD_CMD[@]}" | xcbeautify --quieter
 
       - name: Package and verify architectures
         env:
