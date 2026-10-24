@@ -13,11 +13,22 @@ import Sparkle
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let library = Library()
   private let sources = Sources()
-  private let updaterController = SPUStandardUpdaterController(
+  /// Created on first use so XCTest never constructs Sparkle. Starting the updater in
+  /// `AppDelegate` init hangs the sandboxed test host (`The test runner hung before
+  /// establishing connection`).
+  private lazy var updaterController = SPUStandardUpdaterController(
     startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
   private var windowController: MainWindowController?
   /// Files asked to be opened before the window was.
   private var pendingURLs: [URL] = []
+
+  private static var isRunningTests: Bool {
+    let environment = ProcessInfo.processInfo.environment
+    return environment["AUDIOTAG_RUNNING_TESTS"] == "1"
+      || environment["XCTestConfigurationFilePath"] != nil
+      || environment["XCTestBundlePath"] != nil
+      || environment["XCTestSessionIdentifier"] != nil
+  }
 
   static func main() {
     let application = NSApplication.shared
@@ -29,7 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    NSApp.mainMenu = MainMenu.make(checkForUpdatesTarget: updaterController)
+    let updatesTarget: AnyObject = Self.isRunningTests ? self : updaterController
+    NSApp.mainMenu = MainMenu.make(checkForUpdatesTarget: updatesTarget)
     sources.restore()
     let windowController = MainWindowController(library: library, sources: sources)
     self.windowController = windowController
